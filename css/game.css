@@ -19,10 +19,18 @@
 }
 
 .brand-logo-img {
-  width: 200px;
+  width: 220px;
   height: auto;
   max-width: 80%;
   filter: drop-shadow(0 4px 15px rgba(0, 150, 255, 0.4));
+}
+
+.header-logo-img {
+  height: 28px;
+  width: auto;
+  max-width: 140px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
 }
 
 .loading-title {

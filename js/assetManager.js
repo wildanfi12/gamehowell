@@ -24,6 +24,8 @@ class AssetManager {
     // 1. Branding Logo
     assetList.push({ id: 'brand-logo', src: 'assets/branding/howell-logo.png' });
     assetList.push({ id: 'brand-logo-white', src: 'assets/branding/howell-logo-white.png' });
+    assetList.push({ id: 'brand-emblem', src: 'assets/branding/howell-emblem.png' });
+    assetList.push({ id: 'brand-emblem-white', src: 'assets/branding/howell-emblem-white.png' });
 
     // 2. Howell Totebag
     assetList.push({ id: 'howell-totebag', src: CONFIG.PLAYER.ASSET });
