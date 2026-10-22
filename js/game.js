@@ -55,80 +55,101 @@ export class Game {
     this.offsetX = 0;
     this.offsetY = 0;
 
+    this.countdownInterval = null;
     this.initCanvas();
     this.initInputs();
     this.initVisibility();
   }
 
+  resizeCanvas() {
+    const container = document.getElementById('canvas-container');
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    this.canvas.width = Math.floor(rect.width * dpr);
+    this.canvas.height = Math.floor(rect.height * dpr);
+    this.canvas.style.width = `${rect.width}px`;
+    this.canvas.style.height = `${rect.height}px`;
+
+    const scaleX = (rect.width * dpr) / CONFIG.GAME.BASE_WIDTH;
+    const scaleY = (rect.height * dpr) / CONFIG.GAME.BASE_HEIGHT;
+    this.scaleRatio = Math.min(scaleX, scaleY);
+
+    this.offsetX = (this.canvas.width - CONFIG.GAME.BASE_WIDTH * this.scaleRatio) / 2;
+    this.offsetY = (this.canvas.height - CONFIG.GAME.BASE_HEIGHT * this.scaleRatio) / 2;
+  }
+
   initCanvas() {
-    const resize = () => {
-      const container = document.getElementById('canvas-container');
-      const rect = container.getBoundingClientRect();
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-
-      this.canvas.width = rect.width * dpr;
-      this.canvas.height = rect.height * dpr;
-      this.canvas.style.width = `${rect.width}px`;
-      this.canvas.style.height = `${rect.height}px`;
-
-      // Scale context so internal coordinate space is always 450 x 800
-      this.ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
-      const scaleX = (rect.width * dpr) / CONFIG.GAME.BASE_WIDTH;
-      const scaleY = (rect.height * dpr) / CONFIG.GAME.BASE_HEIGHT;
-      this.scaleRatio = Math.min(scaleX, scaleY);
-
-      this.offsetX = (this.canvas.width - CONFIG.GAME.BASE_WIDTH * this.scaleRatio) / 2;
-      this.offsetY = (this.canvas.height - CONFIG.GAME.BASE_HEIGHT * this.scaleRatio) / 2;
-    };
-
-    window.addEventListener('resize', resize);
-    window.addEventListener('orientationchange', resize);
-    resize();
+    window.addEventListener('resize', () => this.resizeCanvas());
+    window.addEventListener('orientationchange', () => {
+      setTimeout(() => this.resizeCanvas(), 100);
+    });
+    this.resizeCanvas();
   }
 
   initInputs() {
     let isDragging = false;
 
-    const handlePointerMove = (e) => {
-      if (this.state !== GAME_STATES.PLAYING) return;
-      e.preventDefault();
+    const handlePointerMove = (clientX) => {
+      if (this.state !== GAME_STATES.PLAYING && this.state !== GAME_STATES.COUNTDOWN) return;
 
       const rect = this.canvas.getBoundingClientRect();
-      const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
-
-      // Convert clientX to game's virtual 450 coordinate space
       const relativeX = clientX - rect.left;
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const canvasPx = relativeX * dpr;
-      const virtualX = (canvasPx - this.offsetX) / this.scaleRatio;
 
-      this.player.moveTo(virtualX);
+      if (this.scaleRatio > 0) {
+        const virtualX = (canvasPx - this.offsetX) / this.scaleRatio;
+        this.player.moveTo(virtualX);
+      }
     };
 
-    const container = document.getElementById('canvas-container');
+    const getClientX = (e) => {
+      if (e.clientX !== undefined) return e.clientX;
+      if (e.touches && e.touches[0]) return e.touches[0].clientX;
+      if (e.changedTouches && e.changedTouches[0]) return e.changedTouches[0].clientX;
+      return this.canvas.getBoundingClientRect().left + this.canvas.clientWidth / 2;
+    };
 
-    container.addEventListener('pointerdown', (e) => {
+    const onPointerDown = (e) => {
       isDragging = true;
       Sound.ensureContext();
-      handlePointerMove(e);
-    }, { passive: false });
+      handlePointerMove(getClientX(e));
+    };
 
-    window.addEventListener('pointermove', (e) => {
-      if (isDragging) {
-        handlePointerMove(e);
+    const onPointerMove = (e) => {
+      if (!isDragging) return;
+      handlePointerMove(getClientX(e));
+    };
+
+    const onPointerUp = () => {
+      isDragging = false;
+    };
+
+    const frame = document.getElementById('game-frame');
+    frame.addEventListener('pointerdown', onPointerDown, { passive: true });
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
+    window.addEventListener('pointerup', onPointerUp, { passive: true });
+    window.addEventListener('pointercancel', onPointerUp, { passive: true });
+
+    // Touch events explicitly
+    frame.addEventListener('touchstart', onPointerDown, { passive: true });
+    window.addEventListener('touchmove', onPointerMove, { passive: true });
+    window.addEventListener('touchend', onPointerUp, { passive: true });
+
+    // Desktop Keyboard controls (Left/Right arrow keys and A/D keys)
+    window.addEventListener('keydown', (e) => {
+      if (this.state !== GAME_STATES.PLAYING) return;
+      const step = 45;
+      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+        this.player.moveTo(this.player.x + this.player.width / 2 - step);
+      } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+        this.player.moveTo(this.player.x + this.player.width / 2 + step);
       }
-    }, { passive: false });
-
-    window.addEventListener('pointerup', () => {
-      isDragging = false;
     });
-
-    window.addEventListener('pointercancel', () => {
-      isDragging = false;
-    });
-
-    // Prevent default touch gestures (pinch-to-zoom, pull-down refresh)
-    container.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
   }
 
   initVisibility() {
@@ -140,6 +161,11 @@ export class Game {
   }
 
   startCountdownAndPlay() {
+    if (this.countdownInterval) {
+      clearInterval(this.countdownInterval);
+      this.countdownInterval = null;
+    }
+
     this.scoreManager.reset();
     this.powerupManager.reset();
     this.itemManager.reset();
@@ -147,24 +173,31 @@ export class Game {
     this.lives = CONFIG.GAME.INITIAL_LIVES;
     this.lastCountdownBeepSecond = -1;
 
-    // Reset player position
+    // Refresh player totebag image from asset cache
+    this.player.image = Assets.getImage('howell-totebag');
+
+    // Reset player position to center
     this.player.x = (CONFIG.GAME.BASE_WIDTH - this.player.width) / 2;
     this.player.targetX = this.player.x;
 
     this.ui.showScreen('gameplay');
+    this.resizeCanvas();
     this.ui.updateHUD(this.scoreManager.score, this.timeRemaining, this.lives, []);
 
     // 3.. 2.. 1.. GO overlay
     const overlay = document.getElementById('countdown-overlay');
     const numberEl = document.getElementById('countdown-number');
     overlay.classList.remove('hidden');
+    overlay.style.display = 'flex';
+    overlay.style.pointerEvents = 'none';
 
+    this.state = GAME_STATES.COUNTDOWN;
     let count = 3;
     numberEl.textContent = count;
     numberEl.className = 'countdown-num pulse';
     Sound.playClick();
 
-    const interval = setInterval(() => {
+    this.countdownInterval = setInterval(() => {
       count--;
       if (count > 0) {
         numberEl.textContent = count;
@@ -174,13 +207,24 @@ export class Game {
         numberEl.textContent = 'MULAI!';
         numberEl.className = 'countdown-num go pulse';
         Sound.playBonus();
-      } else {
-        clearInterval(interval);
-        overlay.classList.add('hidden');
+
+        // Start the game loop immediately!
         this.state = GAME_STATES.PLAYING;
         this.lastFrameTime = performance.now();
+
+        // Ensure canvas scale is correct
+        this.resizeCanvas();
+
+        // Smoothly dismiss the countdown overlay
+        setTimeout(() => {
+          overlay.classList.add('hidden');
+          overlay.style.display = 'none';
+        }, 500);
+
+        clearInterval(this.countdownInterval);
+        this.countdownInterval = null;
       }
-    }, 800);
+    }, 700);
   }
 
   pause() {
@@ -218,6 +262,11 @@ export class Game {
 
   update(dt) {
     if (this.state !== GAME_STATES.PLAYING) return;
+
+    // Safety check: ensure canvas scale is valid
+    if (this.scaleRatio <= 0 || this.canvas.width === 0) {
+      this.resizeCanvas();
+    }
 
     // 1. Timer countdown
     this.timeRemaining -= dt;
@@ -374,10 +423,11 @@ export class Game {
     const w = CONFIG.GAME.BASE_WIDTH;
     const h = CONFIG.GAME.BASE_HEIGHT;
 
-    // Subtle dark gradient
+    // Subtle dark gradient with high contrast for black products
     const grad = ctx.createLinearGradient(0, 0, 0, h);
-    grad.addColorStop(0, '#0d1527');
-    grad.addColorStop(0.5, '#090e1a');
+    grad.addColorStop(0, '#15243f');
+    grad.addColorStop(0.35, '#0e182b');
+    grad.addColorStop(0.75, '#090e1a');
     grad.addColorStop(1, '#05070d');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);

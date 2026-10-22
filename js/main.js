@@ -21,6 +21,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Asset preloading completed smoothly
     setTimeout(() => {
       game.state = 'home';
+      game.player.image = Assets.getImage('howell-totebag');
       game.ui.showScreen('home');
       game.start();
     }, 400);

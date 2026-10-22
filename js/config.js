@@ -43,14 +43,14 @@ export const CONFIG = {
   PLAYER: {
     ASSET: "assets/player/howell-totebag.png",
     FALLBACK_ASSET: "assets/player/hd/howell-totebag.png",
-    WIDTH_RATIO: 0.28, // 28% of canvas width
+    WIDTH_RATIO: 0.32, // 32% of canvas width for comfortable mobile catching
     ASPECT_RATIO: 1086 / 1448, // Authentic Howell totebag proportions
-    BOTTOM_MARGIN_RATIO: 0.03, // Distance from canvas bottom
-    // The bag opening is at ~26% to ~38% from top of the totebag image (below straps)
-    CATCH_ZONE_TOP_RATIO: 0.27,
-    CATCH_ZONE_BOTTOM_RATIO: 0.42,
-    CATCH_ZONE_WIDTH_RATIO: 0.82, // 82% of bag width is the mouth
-    SMOOTHING: 0.25, // Touch interpolation smoothing factor
+    BOTTOM_MARGIN_RATIO: 0.035, // Distance from canvas bottom
+    // The bag opening is at ~25% to ~44% from top of the totebag image (below straps)
+    CATCH_ZONE_TOP_RATIO: 0.25,
+    CATCH_ZONE_BOTTOM_RATIO: 0.44,
+    CATCH_ZONE_WIDTH_RATIO: 0.92, // 92% of bag width is the mouth
+    SMOOTHING: 0.45, // Snappier touch interpolation
     MAX_TILT_DEG: 8 // Slight dynamic tilt when moving left/right
   },
 

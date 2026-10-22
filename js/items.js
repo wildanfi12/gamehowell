@@ -75,6 +75,14 @@ export class Item {
     this.y += effectiveVy * dt;
     this.x += this.vx * dt;
 
+    if (!this.isAttracted) {
+      this.vx *= 0.92;
+    }
+
+    // Keep within horizontal bounds
+    if (this.x < 5) { this.x = 5; this.vx = 0; }
+    if (this.x > 450 - this.width - 5) { this.x = 450 - this.width - 5; this.vx = 0; }
+
     // Gentle rotation wobble
     this.rotation += this.rotationSpeed * dt;
     if (Math.abs(this.rotation) > this.maxWobble) {

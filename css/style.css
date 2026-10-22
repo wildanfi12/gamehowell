@@ -87,8 +87,10 @@ html, body {
   transform: scale(1);
 }
 
-.screen.hidden {
+.screen.hidden,
+.hidden {
   display: none !important;
+  pointer-events: none !important;
 }
 
 /* Typography */

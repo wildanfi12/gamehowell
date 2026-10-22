@@ -115,18 +115,19 @@ export class Player {
   update(dt) {
     // Smooth interpolation to target position
     const prevX = this.x;
-    this.x += (this.targetX - this.x) * (CONFIG.PLAYER.SMOOTHING * (dt * 60));
+    const factor = Math.min(1, CONFIG.PLAYER.SMOOTHING * (dt * 60));
+    this.x += (this.targetX - this.x) * factor;
     this.clamp();
 
     // Calculate horizontal velocity for dynamic tilt
     this.vx = (this.x - prevX) / Math.max(0.001, dt);
     const targetTilt = Math.max(-CONFIG.PLAYER.MAX_TILT_DEG, 
       Math.min(CONFIG.PLAYER.MAX_TILT_DEG, (this.vx / 300) * CONFIG.PLAYER.MAX_TILT_DEG));
-    this.tiltAngle += (targetTilt - this.tiltAngle) * 0.2;
+    this.tiltAngle += (targetTilt - this.tiltAngle) * 0.25;
 
     // Spring squash & stretch back to 1
-    this.squashX += (1 - this.squashX) * 0.2;
-    this.squashY += (1 - this.squashY) * 0.2;
+    this.squashX += (1 - this.squashX) * 0.25;
+    this.squashY += (1 - this.squashY) * 0.25;
 
     // Update swallowed items
     for (let i = this.swallowedItems.length - 1; i >= 0; i--) {
@@ -172,16 +173,17 @@ export class Player {
     }
 
     // 2. Render authentic Howell Totebag
-    if (this.image) {
+    const img = Assets.getImage('howell-totebag') || this.image;
+    if (img) {
       // Soft ambient shadow underneath
       ctx.save();
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
       ctx.beginPath();
       ctx.ellipse(0, this.height / 2 - 2, this.width * 0.44, 9, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
 
-      ctx.drawImage(this.image, -this.width / 2, -this.height / 2, this.width, this.height);
+      ctx.drawImage(img, -this.width / 2, -this.height / 2, this.width, this.height);
     }
 
     // 3. Subtle bag mouth glow / rim highlight

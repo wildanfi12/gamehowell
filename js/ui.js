@@ -183,6 +183,12 @@ export class UIManager {
       }
     }
 
+    if (name === 'gameplay' && this.game) {
+      requestAnimationFrame(() => {
+        this.game.resizeCanvas();
+      });
+    }
+
     if (name === 'home') {
       const best = Storage.getHighScore();
       const el = document.getElementById('home-best-score');
@@ -383,12 +389,18 @@ export class UIManager {
       `).join('');
     }
 
-    this.screens.rewardsModal?.classList.remove('hidden');
-    this.screens.rewardsModal?.classList.add('active');
+    if (this.screens.rewardsModal) {
+      this.screens.rewardsModal.style.display = 'flex';
+      this.screens.rewardsModal.classList.remove('hidden');
+      this.screens.rewardsModal.classList.add('active');
+    }
   }
 
   closeRewardsModal() {
-    this.screens.rewardsModal?.classList.remove('active');
-    this.screens.rewardsModal?.classList.add('hidden');
+    if (this.screens.rewardsModal) {
+      this.screens.rewardsModal.classList.remove('active');
+      this.screens.rewardsModal.classList.add('hidden');
+      this.screens.rewardsModal.style.display = 'none';
+    }
   }
 }

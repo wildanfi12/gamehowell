@@ -26,8 +26,12 @@ export class CollisionSystem {
     const horizontalOverlap = (itemRight > bagLeft && itemLeft < bagRight);
 
     // Vertical trigger: item's lower edge reaches the bag opening rim
+    // Generous threshold to prevent high-speed tunneling on 60fps/120fps displays
     const itemBottom = itemBox.bottomY;
-    const verticalOverlap = (itemBottom >= bagZone.y && itemBottom <= bagZone.y + bagZone.height + 25);
+    const verticalOverlap = (
+      itemBottom >= bagZone.y &&
+      itemBox.y <= bagZone.y + bagZone.height + 40
+    );
 
     return horizontalOverlap && verticalOverlap;
   }
