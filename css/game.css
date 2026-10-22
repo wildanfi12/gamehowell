@@ -1,0 +1,657 @@
+/**
+ * HOWELL CATCH & WIN - Game Screen Styles
+ */
+
+/* 1. SCREEN: LOADING */
+#screen-loading {
+  background: radial-gradient(circle at 50% 40%, #0d1e3d 0%, #060a14 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 30px;
+  text-align: center;
+  z-index: 100;
+}
+
+.loading-logo-box {
+  margin-bottom: 30px;
+}
+
+.brand-logo-img {
+  width: 200px;
+  height: auto;
+  max-width: 80%;
+  filter: drop-shadow(0 4px 15px rgba(0, 150, 255, 0.4));
+}
+
+.loading-title {
+  font-size: 26px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+.loading-subtitle {
+  font-size: 13px;
+  color: var(--howell-cyan);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 36px;
+}
+
+.loading-bar-wrapper {
+  width: 240px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.loading-bar-fill {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, #0066ff, #00f2fe);
+  border-radius: 4px;
+  transition: width 0.15s ease-out;
+  box-shadow: 0 0 10px rgba(0, 242, 254, 0.8);
+}
+
+.loading-text {
+  margin-top: 14px;
+  font-size: 12px;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+/* 2. SCREEN: HOME */
+#screen-home {
+  background: radial-gradient(circle at 50% 25%, #0f2347 0%, #060a14 90%);
+  padding: calc(var(--safe-top) + 20px) 24px calc(var(--safe-bottom) + 24px) 24px;
+  justify-content: space-between;
+}
+
+.home-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.home-badge {
+  background: rgba(0, 102, 255, 0.2);
+  border: 1px solid rgba(0, 198, 255, 0.4);
+  color: #38bdf8;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.home-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin: auto 0;
+}
+
+.home-hero-bag {
+  width: 160px;
+  height: auto;
+  max-height: 200px;
+  object-fit: contain;
+  filter: drop-shadow(0 15px 25px rgba(0, 0, 0, 0.7));
+  animation: heroFloat 3s ease-in-out infinite;
+  margin-bottom: 12px;
+}
+
+@keyframes heroFloat {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(-1.5deg); }
+}
+
+.home-game-title {
+  font-size: 34px;
+  font-weight: 900;
+  line-height: 1.1;
+  background: linear-gradient(180deg, #ffffff 0%, #90caf9 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 6px;
+}
+
+.home-tagline {
+  font-size: 13px;
+  color: var(--howell-gold);
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin-bottom: 16px;
+}
+
+.home-best-pill {
+  background: rgba(255, 183, 0, 0.12);
+  border: 1px solid rgba(255, 183, 0, 0.35);
+  color: var(--howell-gold);
+  padding: 6px 16px;
+  border-radius: 30px;
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.home-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+/* 3. SCREEN: TUTORIAL */
+#screen-tutorial {
+  background: #080d1a;
+  padding: calc(var(--safe-top) + 20px) 20px calc(var(--safe-bottom) + 20px) 20px;
+  justify-content: space-between;
+}
+
+.tutorial-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 16px 0;
+  overflow-y: auto;
+}
+
+.tutorial-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+.tutorial-icon {
+  font-size: 26px;
+  min-width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: rgba(0, 102, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tutorial-text h4 {
+  font-size: 13px;
+  color: #ffffff;
+  margin-bottom: 2px;
+}
+
+.tutorial-text p {
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.3;
+}
+
+/* 4. SCREEN: GAMEPLAY & CANVAS */
+#screen-gameplay {
+  background: #000000;
+}
+
+#canvas-container {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  touch-action: none;
+}
+
+#game-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* HUD Top Header */
+.game-hud {
+  position: absolute;
+  top: var(--safe-top);
+  left: 0;
+  width: 100%;
+  padding: 12px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.hud-left, .hud-center, .hud-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.hud-box {
+  background: rgba(11, 17, 30, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 6px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 60px;
+}
+
+.hud-box-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.hud-box-value {
+  font-size: 18px;
+  font-weight: 900;
+  color: #ffffff;
+  font-family: var(--font-display);
+}
+
+.hud-score-val {
+  color: var(--howell-cyan);
+}
+
+.hud-timer-box.timer-urgent {
+  background: rgba(255, 59, 48, 0.35);
+  border-color: #ff3b30;
+  animation: timerPulse 0.5s infinite alternate;
+}
+
+.hud-timer-box.timer-urgent .hud-box-value {
+  color: #ff4757;
+}
+
+@keyframes timerPulse {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.08); }
+}
+
+.hud-lives {
+  display: flex;
+  gap: 3px;
+  font-size: 16px;
+}
+
+.hud-heart {
+  transition: transform 0.2s ease;
+}
+
+.hud-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(11, 17, 30, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+/* Power-up Pills */
+.hud-powerups-bar {
+  position: absolute;
+  top: calc(var(--safe-top) + 64px);
+  left: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.powerup-pill {
+  background: rgba(16, 24, 40, 0.85);
+  border: 1px solid var(--howell-cyan);
+  border-radius: 20px;
+  padding: 4px 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.powerup-pill-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
+.powerup-pill-time {
+  color: var(--howell-gold);
+}
+
+/* Red Damage Impact Flash */
+#damage-flash {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, rgba(255, 59, 48, 0.5) 0%, rgba(255, 0, 0, 0.8) 100%);
+  z-index: 25;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s ease-out;
+}
+
+#damage-flash.active {
+  opacity: 1;
+}
+
+/* Countdown 3-2-1 Overlay */
+#countdown-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(3, 7, 18, 0.65);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 30;
+}
+
+.countdown-num {
+  font-size: 72px;
+  font-weight: 900;
+  font-family: var(--font-display);
+  color: #ffffff;
+  text-shadow: 0 0 25px rgba(0, 242, 254, 0.9);
+}
+
+.countdown-num.go {
+  font-size: 58px;
+  color: var(--howell-gold);
+}
+
+.pulse {
+  animation: numPop 0.75s ease-out;
+}
+
+@keyframes numPop {
+  0% { transform: scale(0.4); opacity: 0; }
+  60% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* 5. SCREEN: PAUSE */
+#screen-pause {
+  background: rgba(3, 7, 18, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  justify-content: center;
+  align-items: center;
+  padding: 30px;
+}
+
+.pause-box {
+  width: 100%;
+  max-width: 320px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 6. SCREEN: RESULTS */
+#screen-results {
+  background: radial-gradient(circle at 50% 25%, #0d1e3d 0%, #060a14 90%);
+  padding: calc(var(--safe-top) + 20px) 20px calc(var(--safe-bottom) + 20px) 20px;
+  justify-content: space-between;
+  overflow-y: auto;
+}
+
+.results-header {
+  text-align: center;
+}
+
+.results-gameover-title {
+  font-size: 32px;
+  font-weight: 900;
+  color: #ffffff;
+  margin-bottom: 2px;
+}
+
+.results-score-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(0, 198, 255, 0.3);
+  border-radius: 18px;
+  padding: 16px;
+  text-align: center;
+  margin: 12px 0;
+  position: relative;
+}
+
+.results-score-label {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.results-score-val {
+  font-size: 48px;
+  font-weight: 900;
+  color: var(--howell-cyan);
+  font-family: var(--font-display);
+  margin: 4px 0;
+}
+
+.new-record-tag {
+  background: linear-gradient(90deg, #ff9f43, #ff5252);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 20px;
+  display: inline-block;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+  animation: pulse 1s infinite alternate;
+}
+
+/* Reward Tier Banner */
+.results-reward-box {
+  background: rgba(255, 183, 0, 0.08);
+  border: 1px dashed var(--howell-gold);
+  border-radius: 14px;
+  padding: 12px;
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.reward-tier-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 4px;
+}
+
+.results-reward-name {
+  font-size: 16px;
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 4px;
+}
+
+.results-reward-desc {
+  font-size: 11px;
+  color: #cbd5e1;
+  margin-bottom: 8px;
+}
+
+.results-reward-code {
+  font-family: monospace;
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 4px 8px;
+  border-radius: 6px;
+  color: var(--howell-gold);
+  display: inline-block;
+}
+
+/* Nickname input */
+.nickname-input-group {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.nickname-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: #ffffff;
+  font-family: var(--font-main);
+  font-weight: 600;
+  font-size: 13px;
+  outline: none;
+}
+
+.nickname-input:focus {
+  border-color: var(--howell-cyan);
+}
+
+.btn-small {
+  padding: 10px 14px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.results-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 7. SCREEN: LEADERBOARD */
+#screen-leaderboard {
+  background: #080d1a;
+  padding: calc(var(--safe-top) + 20px) 20px calc(var(--safe-bottom) + 20px) 20px;
+  justify-content: space-between;
+}
+
+.leaderboard-container {
+  flex: 1;
+  overflow-y: auto;
+  margin: 16px 0;
+}
+
+.leaderboard-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.leaderboard-item {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 10px 14px;
+  gap: 12px;
+}
+
+.leaderboard-item.rank-1 {
+  background: rgba(255, 183, 0, 0.12);
+  border-color: rgba(255, 183, 0, 0.4);
+}
+
+.leaderboard-rank {
+  font-size: 16px;
+  font-weight: 800;
+  width: 28px;
+  text-align: center;
+}
+
+.leaderboard-info {
+  flex: 1;
+}
+
+.leaderboard-name {
+  font-weight: 700;
+  font-size: 13px;
+  color: #ffffff;
+}
+
+.leaderboard-meta {
+  font-size: 10px;
+  color: #64748b;
+}
+
+.leaderboard-score {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--howell-cyan);
+}
+
+/* REWARD TIERS MODAL */
+.reward-tier-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.reward-tier-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.reward-tier-score {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--howell-gold);
+}
+
+.reward-tier-title {
+  font-size: 13px;
+  color: #ffffff;
+  margin-bottom: 2px;
+}
+
+.reward-tier-desc {
+  font-size: 11px;
+  color: #94a3b8;
+  line-height: 1.3;
+}

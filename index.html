@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#080d1a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="description" content="HOWELL CATCH & WIN - Game Arcade Resmi Booth HOWELL di INDOCOMTECH 2026. Tangkap produk asli HOWELL dan menangkan hadiah menarik!" />
+  
+  <title>HOWELL CATCH & WIN — INDOCOMTECH 2026</title>
+  
+  <link rel="icon" type="image/png" href="assets/branding/howell-logo-white.png" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/game.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+</head>
+<body>
+  <div id="app">
+    <main id="game-frame">
+
+      <!-- SCREEN 1: LOADING -->
+      <section id="screen-loading" class="screen active">
+        <div class="loading-logo-box">
+          <img src="assets/branding/howell-logo.png" alt="HOWELL Logo" class="brand-logo-img debug-toggle-target" />
+        </div>
+        <h1 class="loading-title">CATCH &amp; WIN</h1>
+        <p class="loading-subtitle">INDOCOMTECH 2026</p>
+        
+        <div class="loading-bar-wrapper">
+          <div id="loading-progress-bar" class="loading-bar-fill"></div>
+        </div>
+        <p id="loading-progress-text" class="loading-text">Memuat Aset Resmi Howell...</p>
+      </section>
+
+      <!-- SCREEN 2: HOME -->
+      <section id="screen-home" class="screen hidden">
+        <header class="home-header">
+          <img src="assets/branding/howell-logo-white.png" alt="HOWELL" style="height: 24px; width: auto;" class="debug-toggle-target" />
+          <div class="home-badge">INDOCOMTECH 2026</div>
+          <button class="btn-icon sound-toggle-btn" aria-label="Toggle Sound">
+            <span class="sound-icon">🔊</span>
+          </button>
+        </header>
+
+        <div class="home-center">
+          <img src="assets/player/howell-totebag.png" alt="HOWELL Totebag" class="home-hero-bag" />
+          <h1 class="home-game-title">CATCH &amp; WIN</h1>
+          <p class="home-tagline">Catch More, Win More!</p>
+          <div class="home-best-pill">
+            <span>🏆 Skor Terbaik:</span>
+            <strong id="home-best-score">0</strong>
+          </div>
+        </div>
+
+        <nav class="home-actions">
+          <button id="btn-home-play" class="btn btn-primary">
+            <span>MAIN SEKARANG</span> <span>▶</span>
+          </button>
+          <button id="btn-home-tutorial" class="btn btn-secondary">
+            <span>CARA BERMAIN</span>
+          </button>
+          <button id="btn-home-leaderboard" class="btn btn-secondary">
+            <span>LEADERBOARD BOOTH</span> <span>🏆</span>
+          </button>
+        </nav>
+      </section>
+
+      <!-- SCREEN 3: HOW TO PLAY (TUTORIAL) -->
+      <section id="screen-tutorial" class="screen hidden">
+        <header class="home-header">
+          <h2>CARA BERMAIN</h2>
+          <button id="btn-tutorial-back" class="btn-icon" aria-label="Kembali">✕</button>
+        </header>
+
+        <div class="tutorial-list">
+          <div class="tutorial-card">
+            <div class="tutorial-icon">👜</div>
+            <div class="tutorial-text">
+              <h4>1. Geser Totebag HOWELL</h4>
+              <p>Sentuh &amp; geser jari ke kiri-kanan untuk menggerakkan totebag di bagian bawah layar.</p>
+            </div>
+          </div>
+
+          <div class="tutorial-card">
+            <div class="tutorial-icon">⚡</div>
+            <div class="tutorial-text">
+              <h4>2. Tangkap Produk Asli HOWELL</h4>
+              <p>Tangkap TWS, kabel audio, kabel HDMI, hingga charger untuk mengumpulkan poin &amp; combo!</p>
+            </div>
+          </div>
+
+          <div class="tutorial-card">
+            <div class="tutorial-icon">💣</div>
+            <div class="tutorial-text">
+              <h4>3. Hindari Bom &amp; Barang Rusak</h4>
+              <p>Bom mengurangi 1 nyawa hati ❤️. Barang rusak mengurangi 10 poin &amp; mereset combo!</p>
+            </div>
+          </div>
+
+          <div class="tutorial-card">
+            <div class="tutorial-icon">🎁</div>
+            <div class="tutorial-text">
+              <h4>4. Ambil Power-Up &amp; Menangkan Hadiah</h4>
+              <p>Dapatkan 2X Score, Magnet, dan Slow-Mo. Kumpulkan skor setinggi-tingginya dalam 30 detik!</p>
+            </div>
+          </div>
+        </div>
+
+        <button id="btn-tutorial-play" class="btn btn-primary">
+          <span>MULAI MAIN (30 DETIK)</span> <span>▶</span>
+        </button>
+      </section>
+
+      <!-- SCREEN 4: GAMEPLAY & CANVAS -->
+      <section id="screen-gameplay" class="screen hidden">
+        <!-- Canvas Layer -->
+        <div id="canvas-container">
+          <canvas id="game-canvas"></canvas>
+        </div>
+
+        <!-- Gameplay HUD Header -->
+        <header class="game-hud">
+          <div class="hud-left">
+            <div id="hud-lives-container" class="hud-lives">
+              <span class="hud-heart">❤️</span>
+              <span class="hud-heart">❤️</span>
+              <span class="hud-heart">❤️</span>
+            </div>
+          </div>
+
+          <div class="hud-center">
+            <div id="hud-timer-box" class="hud-box hud-timer-box">
+              <span class="hud-box-label">WAKTU</span>
+              <span id="hud-timer-val" class="hud-box-value">30</span>
+            </div>
+            <div class="hud-box">
+              <span class="hud-box-label">SKOR</span>
+              <span id="hud-score-val" class="hud-box-value hud-score-val">0</span>
+            </div>
+          </div>
+
+          <div class="hud-right">
+            <button id="btn-hud-sound" class="hud-btn sound-toggle-btn" aria-label="Toggle Sound">
+              <span class="sound-icon">🔊</span>
+            </button>
+            <button id="btn-hud-pause" class="hud-btn" aria-label="Pause Game">⏸</button>
+          </div>
+        </header>
+
+        <!-- Active Power-up Pills Indicator -->
+        <div id="hud-powerups-container" class="hud-powerups-bar"></div>
+
+        <!-- Damage Red Flash Overlay -->
+        <div id="damage-flash"></div>
+
+        <!-- 3-2-1 Countdown Overlay -->
+        <div id="countdown-overlay" class="hidden">
+          <div id="countdown-number" class="countdown-num">3</div>
+        </div>
+      </section>
+
+      <!-- SCREEN 5: PAUSE MODAL -->
+      <section id="screen-pause" class="screen hidden">
+        <div class="glass-card pause-box">
+          <h2>GAME DIJEDA</h2>
+          <p style="color: #94a3b8; font-size: 13px;">Tarik napas sejenak sebelum lanjut menangkap produk HOWELL!</p>
+          <button id="btn-pause-resume" class="btn btn-primary">LANJUTKAN</button>
+          <button id="btn-pause-quit" class="btn btn-secondary">KELUAR KE MENU</button>
+        </div>
+      </section>
+
+      <!-- SCREEN 6: RESULTS -->
+      <section id="screen-results" class="screen hidden">
+        <header class="results-header">
+          <div id="res-new-record" class="new-record-tag hidden">★ REKOR BARU TERCAPAI! ★</div>
+          <h2 class="results-gameover-title">GAME OVER!</h2>
+          <p style="color: #94a3b8; font-size: 12px;">Waktu Habis! Terima kasih sudah bermain.</p>
+        </header>
+
+        <div class="results-score-card">
+          <div class="results-score-label">SKOR AKHIR KAMU</div>
+          <div id="res-final-score" class="results-score-val">0</div>
+          <div style="font-size: 12px; color: #94a3b8;">
+            Skor Terbaik: <strong id="res-best-score" style="color: #ffffff;">0</strong>
+          </div>
+        </div>
+
+        <!-- Reward Tier Banner -->
+        <div class="results-reward-box">
+          <span id="res-reward-badge" class="reward-tier-badge" style="background-color: #ffa502;">Gold</span>
+          <h3 id="res-reward-name" class="results-reward-name">Aksesori HOWELL</h3>
+          <p id="res-reward-desc" class="results-reward-desc">Kabel Original HOWELL High-Speed pilihan.</p>
+          <div style="font-size: 10px; color: #94a3b8; margin-bottom: 4px;">Kode Klaim (Demo Pameran):</div>
+          <code id="res-reward-code" class="results-reward-code">HOWELL-DEMO-GOLD-210-ABCD</code>
+          <p style="font-size: 10px; color: #38bdf8; margin-top: 6px;">
+            ℹ️ Tunjukkan layar ini kepada staf di Booth HOWELL INDOCOMTECH 2026.
+          </p>
+        </div>
+
+        <!-- Nickname for Leaderboard -->
+        <div class="nickname-input-group">
+          <input type="text" id="res-input-name" class="nickname-input" placeholder="Ketik nama kamu..." maxlength="14" />
+          <button id="res-btn-save" class="btn btn-primary btn-small">Simpan</button>
+        </div>
+
+        <nav class="results-actions">
+          <button id="btn-result-replay" class="btn btn-primary">
+            <span>MAIN LAGI</span> <span>🔄</span>
+          </button>
+          <div style="display: flex; gap: 8px;">
+            <button id="btn-result-rewards" class="btn btn-secondary" style="flex: 1;">
+              <span>DAFTAR HADIAH</span>
+            </button>
+            <button id="btn-result-leaderboard" class="btn btn-secondary" style="flex: 1;">
+              <span>LEADERBOARD</span>
+            </button>
+          </div>
+          <button id="btn-result-home" class="btn btn-secondary">
+            <span>KEMBALI KE MENU</span>
+          </button>
+        </nav>
+      </section>
+
+      <!-- SCREEN 7: LEADERBOARD -->
+      <section id="screen-leaderboard" class="screen hidden">
+        <header class="home-header">
+          <div>
+            <h2>LEADERBOARD</h2>
+            <p style="font-size: 11px; color: var(--howell-cyan);">BOOTH DEMO — INDOCOMTECH 2026</p>
+          </div>
+          <button id="btn-leaderboard-close" class="btn-icon" aria-label="Tutup">✕</button>
+        </header>
+
+        <div class="leaderboard-container">
+          <ul id="leaderboard-list" class="leaderboard-list">
+            <!-- Dynamically populated -->
+          </ul>
+        </div>
+
+        <p style="font-size: 10px; color: #64748b; text-align: center; margin-bottom: 8px;">
+          *Papan peringkat lokal sesi pameran booth HOWELL Indonesia.
+        </p>
+
+        <button onclick="document.getElementById('btn-leaderboard-close').click()" class="btn btn-secondary">
+          KEMBALI KE MENU
+        </button>
+      </section>
+
+      <!-- REWARD TIERS MODAL -->
+      <div id="modal-rewards" class="modal hidden">
+        <div class="glass-card modal-content">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <h3>TIER HADIAH PAMERAN</h3>
+            <button id="btn-modal-rewards-close" class="btn-icon" style="width: 32px; height: 32px;">✕</button>
+          </div>
+          <p style="font-size: 11px; color: #94a3b8; margin-bottom: 14px;">
+            Kumpulkan skor sebanyak mungkin selama 30 detik untuk membawa pulang hadiah resmi dari HOWELL!
+          </p>
+          <div id="rewards-modal-tiers">
+            <!-- Dynamically populated from CONFIG -->
+          </div>
+          <p style="font-size: 10px; color: #e2b030; text-align: center; margin-top: 10px;">
+            *Hadiah fisik dapat diklaim langsung di Booth HOWELL INDOCOMTECH 2026 selama persediaan masih ada.
+          </p>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Entry Script -->
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <radialGradient id="magnetBg" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#2a3b5c"/>
+      <stop offset="100%" stop-color="#101826"/>
+    </radialGradient>
+    <linearGradient id="redPole" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff4757"/>
+      <stop offset="100%" stop-color="#c0392b"/>
+    </linearGradient>
+    <linearGradient id="bluePole" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3742fa"/>
+      <stop offset="100%" stop-color="#1e3799"/>
+    </linearGradient>
+    <linearGradient id="silverTip" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f1f2f6"/>
+      <stop offset="100%" stop-color="#ced6e0"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Outer glowing disk -->
+  <circle cx="50" cy="50" r="42" fill="url(#magnetBg)" stroke="#00d2d3" stroke-width="2.5" filter="drop-shadow(0 4px 10px rgba(0,210,211,0.5))"/>
+  
+  <!-- Horseshoe Magnet -->
+  <!-- Left arm (Red / North) -->
+  <path d="M 30 50 A 20 20 0 0 1 50 30 L 50 39 A 11 11 0 0 0 39 50 L 39 65 L 30 65 Z" fill="url(#redPole)"/>
+  <rect x="30" y="65" width="9" height="7" fill="url(#silverTip)" stroke="#747d8c" stroke-width="0.5"/>
+  <text x="34.5" y="60" fill="#ffffff" font-family="Arial, sans-serif" font-weight="900" font-size="8" text-anchor="middle">N</text>
+  
+  <!-- Right arm (Blue / South) -->
+  <path d="M 50 30 A 20 20 0 0 1 70 50 L 61 50 A 11 11 0 0 0 50 39 L 50 30 Z" fill="url(#bluePole)"/>
+  <path d="M 70 50 L 70 65 L 61 65 L 61 50 Z" fill="url(#bluePole)"/>
+  <rect x="61" y="65" width="9" height="7" fill="url(#silverTip)" stroke="#747d8c" stroke-width="0.5"/>
+  <text x="65.5" y="60" fill="#ffffff" font-family="Arial, sans-serif" font-weight="900" font-size="8" text-anchor="middle">S</text>
+  
+  <!-- Magnetic waves -->
+  <path d="M 24 75 Q 50 92 76 75" fill="none" stroke="#54a0ff" stroke-width="2.5" stroke-dasharray="4,3" stroke-linecap="round"/>
+  <path d="M 28 82 Q 50 98 72 82" fill="none" stroke="#00d2d3" stroke-width="2" stroke-linecap="round" opacity="0.75"/>
+</svg>

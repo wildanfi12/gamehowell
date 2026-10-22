@@ -1,0 +1,92 @@
+/**
+ * HOWELL CATCH & WIN - Responsive Layout & Device Adaptations
+ */
+
+/* Mobile Fullscreen Defaults */
+@media (max-width: 480px) {
+  #app {
+    padding: 0;
+    background: #000000;
+  }
+
+  #game-frame {
+    width: 100vw;
+    height: 100vh;
+    max-width: 100vw;
+    max-height: 100vh;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+
+/* Tablet & Desktop Centering with Smartphone Simulation */
+@media (min-width: 481px) {
+  #game-frame {
+    border-radius: 36px;
+    border: 6px solid #1a2639;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.9), 0 0 20px rgba(0, 102, 255, 0.3);
+  }
+
+  /* Desktop Decorative Brand Watermark in background */
+  #app::before {
+    content: "INDOCOMTECH 2026";
+    position: absolute;
+    bottom: 20px;
+    right: 30px;
+    font-size: 14px;
+    font-weight: 800;
+    color: rgba(255, 255, 255, 0.15);
+    letter-spacing: 2px;
+    pointer-events: none;
+  }
+
+  #app::after {
+    content: "HOWELL INDONESIA • OFFICIAL BOOTH GAME";
+    position: absolute;
+    top: 20px;
+    left: 30px;
+    font-size: 12px;
+    font-weight: 700;
+    color: rgba(0, 198, 255, 0.3);
+    letter-spacing: 1.5px;
+    pointer-events: none;
+  }
+}
+
+/* iPhone Notch and Safe Area Adjustments */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .game-hud {
+    padding-top: calc(env(safe-area-inset-top) + 8px);
+  }
+  #screen-home, #screen-tutorial, #screen-results, #screen-leaderboard {
+    padding-top: calc(env(safe-area-inset-top) + 16px);
+    padding-bottom: calc(env(safe-area-inset-bottom) + 16px);
+  }
+}
+
+/* Small Smartphone Screen Adjustments (e.g. iPhone SE) */
+@media (max-height: 680px) {
+  .home-hero-bag {
+    width: 120px;
+    max-height: 140px;
+  }
+  .home-game-title {
+    font-size: 26px;
+  }
+  .btn {
+    padding: 11px 18px;
+    font-size: 13px;
+  }
+  .results-score-val {
+    font-size: 38px;
+  }
+  .results-gameover-title {
+    font-size: 26px;
+  }
+}
+
+/* Prevent accidental browser gestures */
+body {
+  overscroll-behavior-y: none;
+  -webkit-overflow-scrolling: touch;
+}
