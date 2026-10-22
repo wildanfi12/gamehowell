@@ -142,12 +142,12 @@ export const CONFIG = {
   HAZARDS: {
     BOMB: {
       id: "bomb",
-      name: "Bom",
-      image: "assets/icons/bomb.svg",
+      name: "Bom Pajak",
+      image: "assets/icons/bomb.png",
       penaltyLife: 1,
-      scale: 0.16,
-      shakeDuration: 300, // ms
-      shakeIntensity: 12 // px
+      scale: 0.20,
+      shakeDuration: 350, // ms
+      shakeIntensity: 15 // px
     },
     DAMAGED: {
       id: "damaged",

@@ -43,10 +43,14 @@ export class Item {
 
     // Magnet attraction flag
     this.isAttracted = false;
+
+    // Animation timer
+    this.lifeTime = Math.random() * 5;
   }
 
   update(dt, slowFactor = 1.0, magnetState = null, bagOpening = null) {
     if (this.caught) return;
+    this.lifeTime += dt;
 
     // 1. Slow-motion modifier
     const effectiveVy = this.vy * slowFactor;
@@ -126,17 +130,78 @@ export class Item {
     // Hazard subtle warning ring
     if (this.type === ITEM_TYPES.BOMB || this.type === ITEM_TYPES.DAMAGED) {
       ctx.save();
-      const pulse = 1 + Math.sin(Date.now() / 120) * 0.08;
-      ctx.fillStyle = 'rgba(255, 59, 48, 0.15)';
+      const pulse = 1 + Math.sin(this.lifeTime * 8) * 0.1;
+      ctx.fillStyle = this.type === ITEM_TYPES.BOMB ? 'rgba(255, 60, 0, 0.22)' : 'rgba(255, 59, 48, 0.15)';
       ctx.beginPath();
       ctx.arc(0, 0, (this.width / 2) * pulse, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     }
 
+    // Dynamic cartoon ticking pulse for PAJAK Bomb
+    if (this.type === ITEM_TYPES.BOMB) {
+      const breath = 1 + Math.sin(this.lifeTime * 9) * 0.04;
+      ctx.scale(breath, breath);
+    }
+
     // Draw item image
     if (this.image) {
       ctx.drawImage(this.image, -this.width / 2, -this.height / 2, this.width, this.height);
+    }
+
+    // Live animated burning fuse flame and sparks for PAJAK bomb
+    if (this.type === ITEM_TYPES.BOMB) {
+      const sparkX = this.width * 0.311;
+      const sparkY = -this.height * 0.319;
+      const sparkR = this.width * 0.14;
+      const sparkPulse = 1 + Math.sin(this.lifeTime * 22) * 0.25;
+
+      // 1. Radial glow halo
+      const glowGrad = ctx.createRadialGradient(sparkX, sparkY, 0, sparkX, sparkY, sparkR * 1.8 * sparkPulse);
+      glowGrad.addColorStop(0, 'rgba(255, 255, 200, 0.95)');
+      glowGrad.addColorStop(0.3, 'rgba(255, 170, 0, 0.7)');
+      glowGrad.addColorStop(0.7, 'rgba(255, 50, 0, 0.3)');
+      glowGrad.addColorStop(1, 'rgba(255, 0, 0, 0)');
+      ctx.fillStyle = glowGrad;
+      ctx.beginPath();
+      ctx.arc(sparkX, sparkY, sparkR * 1.8 * sparkPulse, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 2. Rotating starburst flame
+      ctx.save();
+      ctx.translate(sparkX, sparkY);
+      ctx.rotate(this.lifeTime * 8);
+      ctx.fillStyle = '#fff9d2';
+      ctx.strokeStyle = '#ff7700';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      const points = 8;
+      const rOuter = sparkR * 1.1 * sparkPulse;
+      const rInner = sparkR * 0.45;
+      for (let p = 0; p < points * 2; p++) {
+        const radius = p % 2 === 0 ? rOuter : rInner;
+        const angle = (p * Math.PI) / points;
+        const px = Math.cos(angle) * radius;
+        const py = Math.sin(angle) * radius;
+        if (p === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+
+      // 3. Floating spark embers drifting off fuse
+      for (let e = 0; e < 3; e++) {
+        const emberTime = (this.lifeTime * 2.2 + e * 0.33) % 1;
+        const emberX = sparkX + Math.sin(this.lifeTime * 10 + e) * (this.width * 0.12) * emberTime;
+        const emberY = sparkY - emberTime * (this.height * 0.25);
+        const emberAlpha = Math.max(0, 1 - emberTime);
+        ctx.fillStyle = `rgba(255, ${Math.floor(210 - emberTime * 160)}, 0, ${emberAlpha})`;
+        ctx.beginPath();
+        ctx.arc(emberX, emberY, 2.5 * (1 - emberTime * 0.5), 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
     ctx.restore();

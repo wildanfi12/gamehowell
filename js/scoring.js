@@ -98,8 +98,29 @@ export class ScoreManager {
    */
   breakCombo(x = 0, y = 0) {
     this.combo = 0;
-    this.addFloatingLabel('BOOM!', x, y, '#ff0055', 28, true);
+    this.addFloatingLabel('BOOM! PAJAK!', x, y, '#ff0055', 28, true);
     this.spawnParticleBurst(x, y, 35, '#ff4757');
+    this.spawnCoinBurst(x, y, 7);
+  }
+
+  spawnCoinBurst(x, y, count = 6) {
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.4;
+      const speed = 120 + Math.random() * 160;
+      this.particles.push({
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 60,
+        radius: 11,
+        isCoin: true,
+        rotation: Math.random() * Math.PI,
+        rotationSpeed: (Math.random() - 0.5) * 12,
+        color: '#ffb700',
+        alpha: 1.0,
+        decay: 1.2
+      });
+    }
   }
 
   addFloatingLabel(text, x, y, color = '#ffffff', fontSize = 20, isBold = false) {
@@ -153,8 +174,12 @@ export class ScoreManager {
       const p = this.particles[i];
       p.x += p.vx * dt;
       p.y += p.vy * dt;
-      p.vy += 120 * dt; // gravity
+      p.vy += 150 * dt; // gravity
       p.alpha -= p.decay * dt;
+
+      if (p.isCoin) {
+        p.rotation = (p.rotation || 0) + (p.rotationSpeed || 5) * dt;
+      }
 
       if (p.alpha <= 0) {
         this.particles.splice(i, 1);
@@ -167,10 +192,30 @@ export class ScoreManager {
     for (const p of this.particles) {
       ctx.save();
       ctx.globalAlpha = Math.max(0, p.alpha);
-      ctx.fillStyle = p.color;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-      ctx.fill();
+
+      if (p.isCoin) {
+        // Draw spinning gold Rp coin
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rotation || 0);
+        ctx.fillStyle = '#ffb700';
+        ctx.strokeStyle = '#ffeaa7';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, p.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#633d00';
+        ctx.font = 'bold 9px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Rp', 0, 1);
+      } else {
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
       ctx.restore();
     }
 
