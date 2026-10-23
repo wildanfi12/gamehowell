@@ -37,7 +37,7 @@ const CONFIG = {
     maxScale: 1.5,
     duration: 8,
     animationDuration: 0.25,
-    spawnChance: 0.05,
+    spawnChance: 0.35,
     stackable: false,
     refreshOnCollect: true,
   },
@@ -49,7 +49,7 @@ const CONFIG = {
       interval: 0.72,
       bomb: 0.07,
       damaged: 0.03,
-      bonus: 0.09,
+      bonus: 0.12,
       label: "PEMANASAN",
     },
     {
@@ -58,7 +58,7 @@ const CONFIG = {
       interval: 0.58,
       bomb: 0.1,
       damaged: 0.06,
-      bonus: 0.13,
+      bonus: 0.15,
       label: "MAKIN SERU",
     },
     {
@@ -67,7 +67,7 @@ const CONFIG = {
       interval: 0.46,
       bomb: 0.14,
       damaged: 0.08,
-      bonus: 0.13,
+      bonus: 0.15,
       label: "GAS TERUS!",
     },
   ],
@@ -410,6 +410,7 @@ class Game {
     this.target = 200;
     this.bagScale = 1.0;
     this.currentBagWidth = CONFIG.bag.width;
+    this.totebagBonusSpawned = false;
     this.keys = new Set();
     this.reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -487,14 +488,16 @@ class Game {
   }
 
   opening() {
+    const scale = this.bagScale || 1.0;
+    const currentH = CONFIG.bag.height * (1 + (scale - 1) * 0.2);
     const width = (this.currentBagWidth || CONFIG.bag.width) * CONFIG.bag.openingWidth;
     return {
       x: this.x,
       y:
         this.h -
         CONFIG.bag.base -
-        CONFIG.bag.height +
-        CONFIG.bag.height * CONFIG.bag.openingY,
+        currentH +
+        currentH * CONFIG.bag.openingY,
       width,
     };
   }
@@ -509,6 +512,7 @@ class Game {
     this.spawnTime = 0.3;
     this.bagScale = 1.0;
     this.currentBagWidth = CONFIG.bag.width;
+    this.totebagBonusSpawned = false;
     this.x = this.target = CONFIG.width / 2;
     this.shake = 0;
     this.flash = 0;
@@ -554,24 +558,30 @@ class Game {
     if (this.items.length >= CONFIG.maxItems) return;
     const d = difficulty(this.state.time),
       r = Math.random();
-    let item = { kind: "product", product: pickProduct() };
+    let item;
 
-    if (r < d.bomb) {
+    // Guarantee that the special Howell Totebag Expansion bonus spawns early in every match (~3.5-5s)
+    if (CONFIG.toteBagExpansion?.enabled && !this.totebagBonusSpawned && this.state.time >= 3.5) {
+      this.totebagBonusSpawned = true;
+      item = {
+        kind: "bonus",
+        bonus: BONUSES.find((b) => b.id === "totebag") || BONUSES[0],
+      };
+    } else if (r < d.bomb) {
       item = { kind: "bomb" };
     } else if (r < d.bomb + d.damaged) {
       item = { kind: "damaged" };
     } else if (r < d.bomb + d.damaged + d.bonus) {
-      let chosenBonus;
-      if (CONFIG.toteBagExpansion?.enabled && Math.random() < (CONFIG.toteBagExpansion.spawnChance || 0.05)) {
-        chosenBonus = BONUSES.find((b) => b.id === "totebag") || BONUSES[0];
-      } else {
-        const generalBonuses = BONUSES.filter((b) => b.id !== "totebag");
-        chosenBonus = generalBonuses[Math.floor(Math.random() * generalBonuses.length)] || BONUSES[0];
-      }
+      const isTotebag = CONFIG.toteBagExpansion?.enabled && Math.random() < (CONFIG.toteBagExpansion.spawnChance || 0.35);
+      const chosenBonus = isTotebag
+        ? (BONUSES.find((b) => b.id === "totebag") || BONUSES[0])
+        : (BONUSES.filter((b) => b.id !== "totebag")[Math.floor(Math.random() * (BONUSES.length - 1))] || BONUSES[0]);
       item = {
         kind: "bonus",
         bonus: chosenBonus,
       };
+    } else {
+      item = { kind: "product", product: pickProduct() };
     }
 
     let lane = Math.floor(Math.random() * 5);
@@ -630,7 +640,7 @@ class Game {
   update(dt) {
     tick(this.state, dt);
 
-    // Totebag expansion smooth lerp
+    // Totebag expansion smooth lerp (250ms)
     const targetScale = this.state.effects.totebag > 0 ? (CONFIG.toteBagExpansion?.maxScale || 1.5) : 1.0;
     const animDuration = CONFIG.toteBagExpansion?.animationDuration || 0.25;
     const animSpeed = ((CONFIG.toteBagExpansion?.maxScale || 1.5) - 1.0) / animDuration;
@@ -685,8 +695,8 @@ class Game {
         this.labels.push({
           text: result.text,
           x: this.x,
-          y: opening.y - 25,
-          life: 1,
+          y: opening.y - 30,
+          life: 1.1,
           color: result.negative ? "#ff7988" : (item.bonus?.id === "totebag" ? "#38bdf8" : "#f6d343"),
         });
 
@@ -711,14 +721,14 @@ class Game {
 
         if (item.kind === "bonus" || item.kind === "bomb") {
           const isTotebag = item.bonus?.id === "totebag";
-          const count = isTotebag ? 20 : 14;
+          const count = isTotebag ? 24 : 14;
           for (let i = 0; i < count; i++)
             this.particles.push({
               x: this.x + (isTotebag ? (Math.random() - 0.5) * opening.width : 0),
               y: opening.y,
-              vx: (Math.random() - 0.5) * (isTotebag ? 260 : 200),
-              vy: -Math.random() * (isTotebag ? 230 : 180),
-              life: isTotebag ? 0.65 : 0.55,
+              vx: (Math.random() - 0.5) * (isTotebag ? 280 : 200),
+              vy: -Math.random() * (isTotebag ? 240 : 180),
+              life: isTotebag ? 0.7 : 0.55,
               color: result.negative ? "#ff7281" : (isTotebag ? (i % 2 === 0 ? "#38bdf8" : "#f6d343") : item.bonus.color),
             });
         }
@@ -854,42 +864,45 @@ class Game {
       c.fillText("!", 20, -10);
     } else if (item.bonus?.id === "totebag") {
       // Special falling HOWELL Totebag expansion collectible
-      const pulse = 1 + (this.reduced ? 0 : Math.sin(this.state.time * 7 + item.x) * 0.08);
+      const pulse = 1 + (this.reduced ? 0 : Math.sin(this.state.time * 8 + item.x) * 0.1);
       c.shadowColor = "#38bdf8";
-      c.shadowBlur = this.reduced ? 0 : 16;
+      c.shadowBlur = this.reduced ? 0 : 20;
 
-      // Aura circle
+      // Glowing outer halo
       c.fillStyle = "#0c4a6e";
       c.strokeStyle = "#38bdf8";
-      c.lineWidth = 2.5;
+      c.lineWidth = 3;
       c.beginPath();
-      c.arc(0, 0, 27 * pulse, 0, Math.PI * 2);
+      c.arc(0, 0, 30 * pulse, 0, Math.PI * 2);
       c.fill();
       c.stroke();
       c.shadowBlur = 0;
 
-      // Mini Howell bag asset inside
+      // Mini Howell totebag inside
       const bag = this.assets.images.get("bag");
       if (bag) {
-        fitImage(c, bag, -17 * pulse, -19 * pulse, 34 * pulse, 38 * pulse);
+        fitImage(c, bag, -19 * pulse, -21 * pulse, 38 * pulse, 42 * pulse);
       } else {
         c.fillStyle = "#38bdf8";
-        c.font = "20px Arial";
+        c.font = "24px Arial";
         c.textAlign = "center";
         c.textBaseline = "middle";
         c.fillText("👜", 0, -2);
       }
 
-      // +50% badge tag at bottom
+      // "+50%" tag badge at top
       c.fillStyle = "#0284c7";
+      c.strokeStyle = "#38bdf8";
+      c.lineWidth = 1.5;
       c.beginPath();
-      c.roundRect(-16, 12, 32, 14, 4);
+      c.roundRect(4, -28, 30, 16, 4);
       c.fill();
+      c.stroke();
       c.fillStyle = "#ffffff";
       c.font = "bold 9px Arial";
       c.textAlign = "center";
       c.textBaseline = "middle";
-      c.fillText("+50%", 0, 19);
+      c.fillText("+50%", 19, -20);
     } else {
       c.shadowColor = item.bonus.color;
       c.shadowBlur = this.reduced ? 0 : 15;
@@ -936,9 +949,14 @@ class Game {
     }
 
     const opening = this.opening();
+    const currentW = this.currentBagWidth || CONFIG.bag.width;
+    const currentH = CONFIG.bag.height * (1 + ((this.bagScale || 1.0) - 1) * 0.2);
+    const baseY = this.h - CONFIG.bag.base - currentH;
+
+    // Shadow on the ground under totebag
     c.fillStyle = "#0005";
     c.beginPath();
-    c.ellipse(this.x, this.h - 18, (this.currentBagWidth || CONFIG.bag.width) * 0.55, 9, 0, 0, Math.PI * 2);
+    c.ellipse(this.x, this.h - 18, currentW * 0.55, 9, 0, 0, Math.PI * 2);
     c.fill();
 
     if (this.state.effects.magnet > 0) {
@@ -959,50 +977,40 @@ class Game {
       );
 
     const bag = this.assets.images.get("bag");
-    const currentW = this.currentBagWidth;
-    const baseH = CONFIG.bag.height;
-    const baseY = this.h - CONFIG.bag.base - baseH;
 
-    // Totebag expansion rendering: expand opening seamlessly without stretching Howell brand logo
+    // Totebag expansion visual aura & highlighted opening
     if (this.bagScale > 1.0) {
-      const extra = (currentW - CONFIG.bag.width) / 2;
       c.save();
       c.shadowColor = "#38bdf8";
-      c.shadowBlur = this.reduced ? 0 : 12;
+      c.shadowBlur = this.reduced ? 0 : 20;
 
-      // Left wing extension
-      c.fillStyle = "#1e293b";
+      // Glowing expansion energy aura surrounding the enlarged bag
       c.strokeStyle = "#38bdf8";
-      c.lineWidth = 2;
+      c.lineWidth = 3;
+      c.fillStyle = "#0284c718";
       c.beginPath();
-      c.roundRect(this.x - currentW / 2, baseY + 24, extra + 4, baseH - 28, [8, 0, 0, 8]);
+      c.roundRect(this.x - currentW / 2 - 3, baseY - 3, currentW + 6, currentH + 6, 14);
       c.fill();
       c.stroke();
 
-      // Right wing extension
+      // Glowing top opening rim matching opening.width exactly
+      c.fillStyle = "#38bdf8";
       c.beginPath();
-      c.roundRect(this.x + CONFIG.bag.width / 2 - 4, baseY + 24, extra + 4, baseH - 28, [0, 8, 8, 0]);
-      c.fill();
-      c.stroke();
-
-      // Top glowing catch opening bar matching opening.width
-      c.fillStyle = "#0284c7";
-      c.beginPath();
-      c.roundRect(opening.x - opening.width / 2, opening.y, opening.width, 4, 2);
+      c.roundRect(opening.x - opening.width / 2, opening.y - 2, opening.width, 5, 2.5);
       c.fill();
 
       c.restore();
     }
 
-    // Authentic Howell Totebag rendered in center with exact original proportions
+    // Authentic Howell Totebag rendered visibly at expanded size (150% width when active)
     if (bag) {
       fitImage(
         c,
         bag,
-        this.x - CONFIG.bag.width / 2,
+        this.x - currentW / 2,
         baseY,
-        CONFIG.bag.width,
-        baseH,
+        currentW,
+        currentH,
       );
     } else {
       c.fillStyle = "#34506b";
@@ -1014,7 +1022,7 @@ class Game {
     }
 
     for (const p of this.particles) {
-      c.globalAlpha = Math.max(0, p.life / 0.55);
+      c.globalAlpha = Math.max(0, p.life / 0.7);
       c.fillStyle = p.color;
       c.fillRect(p.x, p.y, 4, 4);
     }
