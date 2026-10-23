@@ -30,7 +30,7 @@ const CONFIG = {
     height: 144,
     base: 18,
     openingY: 0.27,
-    openingWidth: 0.76,
+    openingWidth: 0.88,
   },
   toteBagExpansion: {
     enabled: true,
@@ -200,11 +200,18 @@ function collect(s, item) {
 }
 
 function crossesOpening(item, previousY, opening) {
-  return (
-    previousY + item.size * 0.35 <= opening.y &&
-    item.y + item.size * 0.35 >= opening.y &&
-    Math.abs(item.x - opening.x) <= opening.width / 2
-  );
+  const itemRadius = item.size * 0.35;
+  const prevBottom = previousY + itemRadius;
+  const currentBottom = item.y + itemRadius;
+
+  // Horizontal overlap check: item overlaps with bag opening
+  const maxHorizDist = opening.width / 2 + item.size * 0.12;
+  if (Math.abs(item.x - opening.x) > maxHorizDist) {
+    return false;
+  }
+
+  // Vertical swept check: crossed opening plane from above
+  return prevBottom <= opening.y + 10 && currentBottom >= opening.y;
 }
 
 const KEY = "howell-catch-win-v1";
@@ -884,6 +891,7 @@ class Game {
       this.target = this.clamp(this.target + dt * 480);
 
     this.target = this.clamp(this.target);
+    const prevBagX = this.x;
     // When dragging, bag already follows finger directly in the move handler.
     // When not dragging (keyboard or post-release), use fast smooth follow.
     if (this.dragging) {
@@ -900,6 +908,10 @@ class Game {
     }
 
     const opening = this.opening();
+    const currentH = CONFIG.bag.height * (this.bagScale || 1.0);
+    const minBagX = Math.min(prevBagX, this.x);
+    const maxBagX = Math.max(prevBagX, this.x);
+
     for (const item of this.items) {
       if (item.collected) continue;
       const previousY = item.y;
@@ -919,7 +931,25 @@ class Game {
       item.y +=
         item.speed * dt * (this.state.effects.slow > 0 ? CONFIG.slowFactor : 1);
 
-      if (crossesOpening(item, previousY, opening)) {
+      // Robust, forgiving collision detection:
+      // 1. Classical swept vertical crossing
+      // 2. Horizontal bag sweep during fast drags
+      // 3. Item inside upper catch mouth of bag
+      const horizTol = opening.width / 2 + item.size * 0.15;
+      const horizDirect = Math.abs(item.x - this.x) <= horizTol;
+      const horizSwept = item.x >= minBagX - horizTol && item.x <= maxBagX + horizTol;
+
+      const itemBottom = item.y + item.size * 0.35;
+      const prevBottom = previousY + item.size * 0.35;
+      const vertSwept = prevBottom <= opening.y + 12 && itemBottom >= opening.y;
+      const vertInsideMouth = itemBottom >= opening.y && item.y <= opening.y + currentH * 0.45;
+
+      const isCaught =
+        (horizDirect && (vertSwept || vertInsideMouth)) ||
+        (horizSwept && vertSwept) ||
+        crossesOpening(item, previousY, opening);
+
+      if (isCaught) {
         const result = collect(this.state, item);
         if (!result) continue;
         this.audio.play(result.tone);

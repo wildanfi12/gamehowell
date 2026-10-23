@@ -95,9 +95,16 @@ export function collect(s, item) {
 }
 
 export function crossesOpening(item, previousY, opening) {
-  return (
-    previousY + item.size * 0.35 <= opening.y &&
-    item.y + item.size * 0.35 >= opening.y &&
-    Math.abs(item.x - opening.x) <= opening.width / 2
-  );
+  const itemRadius = item.size * 0.35;
+  const prevBottom = previousY + itemRadius;
+  const currentBottom = item.y + itemRadius;
+
+  // Horizontal overlap check: item overlaps with bag opening
+  const maxHorizDist = opening.width / 2 + item.size * 0.12;
+  if (Math.abs(item.x - opening.x) > maxHorizDist) {
+    return false;
+  }
+
+  // Vertical swept check: crossed opening plane from above
+  return prevBottom <= opening.y + 10 && currentBottom >= opening.y;
 }

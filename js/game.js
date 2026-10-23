@@ -323,6 +323,7 @@ export class Game {
       this.target = this.clamp(this.target + dt * 480);
 
     this.target = this.clamp(this.target);
+    const prevBagX = this.x;
     // When dragging, bag already follows finger directly in the move handler.
     // When not dragging (keyboard or post-release), use fast smooth follow.
     if (this.dragging) {
@@ -339,6 +340,10 @@ export class Game {
     }
 
     const opening = this.opening();
+    const currentH = CONFIG.bag.height * (this.bagScale || 1.0);
+    const minBagX = Math.min(prevBagX, this.x);
+    const maxBagX = Math.max(prevBagX, this.x);
+
     for (const item of this.items) {
       if (item.collected) continue;
       const previousY = item.y;
@@ -358,7 +363,25 @@ export class Game {
       item.y +=
         item.speed * dt * (this.state.effects.slow > 0 ? CONFIG.slowFactor : 1);
 
-      if (crossesOpening(item, previousY, opening)) {
+      // Robust, forgiving collision detection:
+      // 1. Classical swept vertical crossing
+      // 2. Horizontal bag sweep during fast drags
+      // 3. Item inside upper catch mouth of bag
+      const horizTol = opening.width / 2 + item.size * 0.15;
+      const horizDirect = Math.abs(item.x - this.x) <= horizTol;
+      const horizSwept = item.x >= minBagX - horizTol && item.x <= maxBagX + horizTol;
+
+      const itemBottom = item.y + item.size * 0.35;
+      const prevBottom = previousY + item.size * 0.35;
+      const vertSwept = prevBottom <= opening.y + 12 && itemBottom >= opening.y;
+      const vertInsideMouth = itemBottom >= opening.y && item.y <= opening.y + currentH * 0.45;
+
+      const isCaught =
+        (horizDirect && (vertSwept || vertInsideMouth)) ||
+        (horizSwept && vertSwept) ||
+        crossesOpening(item, previousY, opening);
+
+      if (isCaught) {
         const result = collect(this.state, item);
         if (!result) continue;
         this.audio.play(result.tone);

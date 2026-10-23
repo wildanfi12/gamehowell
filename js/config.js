@@ -29,7 +29,7 @@ export const CONFIG = {
     height: 144,
     base: 18,
     openingY: 0.27,
-    openingWidth: 0.76,
+    openingWidth: 0.88,
   },
   toteBagExpansion: {
     enabled: true,
