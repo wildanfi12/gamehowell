@@ -883,9 +883,8 @@ const game = new Game($("game"), assets, audio, update, end);
 function start() {
   result = null;
   saved = false;
-  $("score-form").reset();
-  $("save-status").textContent = "";
-  $("score-form").querySelector("button").disabled = false;
+  const nameInput = $("player-name-input");
+  if (nameInput) $("player-name-error")?.classList.add("hidden");
   $("pause-overlay").classList.add("hidden");
   show("play");
   game.start();
@@ -958,6 +957,11 @@ function end(state) {
   scoreAnimation = requestAnimationFrame(count);
   // Save the best immediately, even if the player skips entering a nickname.
   saveBest(state.score);
+  const nameInput = $("player-name-input");
+  if (!saved) {
+    saved = true;
+    saveScore(nameInput?.value || "Pemain Howell", state.score);
+  }
 }
 function leaderboard() {
   const scores = read().scores;
@@ -992,16 +996,6 @@ function leaderboard() {
   });
   show("leaderboard");
 }
-$("score-form").onsubmit = (e) => {
-  e.preventDefault();
-  if (!result || saved) return;
-  saved = true;
-  const persisted = saveScore($("nickname").value, result.score);
-  $("save-status").textContent = persisted
-    ? "Skor tersimpan di browser ini."
-    : "Penyimpanan browser tidak tersedia; skor hanya tersimpan selama sesi.";
-  $("score-form").querySelector("button").disabled = true;
-};
 document.querySelectorAll("[data-action],[data-screen]").forEach((button) =>
   button.addEventListener("click", () => {
     audio.unlock();
