@@ -100,6 +100,8 @@ const BONUSES = [
   { id: "life", icon: "♥", label: "Nyawa ekstra", color: "#f57b8b" },
   { id: "points", icon: "+30", label: "Bonus poin", color: "#63d6a0" },
   { id: "totebag", icon: "👜", label: "Totebag +50%", color: "#38bdf8" },
+  { id: "time5", icon: "+5s", label: "+5 Detik", color: "#00f5d4" },
+  { id: "time10", icon: "+10s", label: "+10 Detik", color: "#10b981" },
 ];
 
 
@@ -120,7 +122,8 @@ function difficulty(time) {
 }
 
 function tick(s, dt) {
-  s.time = Math.min(CONFIG.duration, s.time + dt);
+  const maxDur = s.duration || CONFIG.duration;
+  s.time = Math.min(maxDur, s.time + dt);
   for (const key in s.effects)
     s.effects[key] = Math.max(0, s.effects[key] - dt);
 }
@@ -165,7 +168,25 @@ function collect(s, item) {
     s.score += CONFIG.bonusPoints * (s.effects.double > 0 ? 2 : 1);
   else if (id === "totebag")
     s.effects.totebag = CONFIG.toteBagExpansion.duration;
-  else s.effects[id] = CONFIG.powerups[id];
+  else if (id === "time5") {
+    s.duration = (s.duration || CONFIG.duration) + 5;
+    const pts = 5 * (s.effects.double > 0 ? 2 : 1);
+    s.score += pts;
+    return {
+      text: "+5 DETIK & +5 POIN!",
+      tone: "time5",
+      timeAdded: 5,
+    };
+  } else if (id === "time10") {
+    s.duration = (s.duration || CONFIG.duration) + 10;
+    const pts = 10 * (s.effects.double > 0 ? 2 : 1);
+    s.score += pts;
+    return {
+      text: "+10 DETIK & +10 POIN!",
+      tone: "time10",
+      timeAdded: 10,
+    };
+  } else s.effects[id] = CONFIG.powerups[id];
 
   return {
     text:
@@ -187,11 +208,25 @@ function crossesOpening(item, previousY, opening) {
 }
 
 const KEY = "howell-catch-win-v1";
-const CLOUD_URL = "https://api.restful-api.dev/objects/ff808181a09d98f701a166ed76586416";
+const SYNC_URL = "https://ntfy.sh/howell_indocomtech_leaderboard_2026";
+
+const DEFAULT_SCORES = [
+  { name: "rida", score: 515, date: "2026-10-23T04:32:00.000Z" },
+  { name: "Andrey", score: 455, date: "2026-10-23T04:29:46.030Z" },
+  { name: "Pemain Howell", score: 400, date: "2026-10-23T04:25:28.263Z" },
+  { name: "wil", score: 380, date: "2026-10-23T04:20:52.568Z" },
+  { name: "Wildan Pratama", score: 350, date: "2026-10-23T04:08:21.558Z" },
+  { name: "dadang", score: 350, date: "2026-10-23T04:09:29.930Z" },
+  { name: "Wildan", score: 280, date: "2026-10-23T03:36:01.834Z" },
+  { name: "Rizky", score: 240, date: "2026-10-23T03:46:01.834Z" },
+  { name: "Budi", score: 195, date: "2026-10-23T03:56:01.834Z" },
+  { name: "Sarah", score: 160, date: "2026-10-23T04:06:01.834Z" },
+];
 
 let memory = { scores: [], muted: false },
   loaded = false,
-  sessionBest = 0;
+  sessionBest = 0,
+  syncing = false;
 
 const validScore = (value) => Number.isSafeInteger(value) && value >= 0;
 
@@ -199,7 +234,8 @@ function read(force = false) {
   if (loaded && !force) return memory;
   loaded = true;
   try {
-    const data = JSON.parse(localStorage.getItem(KEY));
+    const raw = localStorage.getItem(KEY);
+    const data = raw ? JSON.parse(raw) : null;
     if (data && Array.isArray(data.scores)) {
       memory = {
         muted: !!data.muted,
@@ -219,8 +255,17 @@ function read(force = false) {
           .sort((a, b) => b.score - a.score)
           .slice(0, 50),
       };
+    } else if (data && typeof data.muted === "boolean") {
+      memory.muted = data.muted;
     }
   } catch {}
+
+  // If memory has no scores yet, seed from DEFAULT_SCORES
+  if (memory.scores.length === 0) {
+    memory.scores = [...DEFAULT_SCORES];
+    write();
+  }
+
   return memory;
 }
 
@@ -265,20 +310,21 @@ function saveLastPlayerName(name) {
 function registerPlayer(name, score = 0) {
   read();
   const cleanName = (name || "").trim().slice(0, 20);
-  if (!cleanName) return;
+  if (!cleanName || cleanName.length < 2) return;
   const existing = memory.scores.find(
     (s) => s.name.toLowerCase() === cleanName.toLowerCase(),
   );
+  const now = new Date().toISOString();
   if (!existing) {
     memory.scores.push({
       name: cleanName,
       score: Math.max(0, score),
-      date: new Date().toISOString(),
+      date: now,
     });
     memory.scores.sort((a, b) => b.score - a.score);
     memory.scores = memory.scores.slice(0, 50);
     write();
-    pushCloudScore(cleanName, Math.max(0, score)).catch(() => {});
+    postScoreToCloud(cleanName, Math.max(0, score), now).catch(() => {});
   }
 }
 
@@ -286,111 +332,121 @@ function saveScore(name, score) {
   read();
   if (!validScore(score)) return false;
   const cleanName = (name || "").trim().slice(0, 20) || "Pemain Howell";
+  const now = new Date().toISOString();
   const existingIndex = memory.scores.findIndex(
     (s) => s.name.toLowerCase() === cleanName.toLowerCase(),
   );
   if (existingIndex >= 0) {
     if (score >= memory.scores[existingIndex].score) {
       memory.scores[existingIndex].score = score;
-      memory.scores[existingIndex].date = new Date().toISOString();
+      memory.scores[existingIndex].date = now;
     }
   } else {
     memory.scores.push({
       name: cleanName,
       score,
-      date: new Date().toISOString(),
+      date: now,
     });
   }
   memory.scores.sort((a, b) => b.score - a.score);
   memory.scores = memory.scores.slice(0, 50);
   const ok = write();
-  pushCloudScore(cleanName, score).catch(() => {});
+  postScoreToCloud(cleanName, score, now).catch(() => {});
   return ok;
 }
 
-async function fetchCloudScores() {
+async function postScoreToCloud(name, score, date) {
   try {
-    const res = await fetch(CLOUD_URL, { cache: "no-store" });
-    if (!res.ok) return null;
-    const json = await res.json();
-    if (json?.data?.scores && Array.isArray(json.data.scores)) {
-      read();
-      const local = memory.scores;
-      const map = new Map();
-
-      for (const s of local) {
-        if (!s || !s.name || !validScore(s.score)) continue;
-        const key = s.name.toLowerCase();
-        if (!map.has(key) || map.get(key).score < s.score) {
-          map.set(key, s);
-        }
-      }
-
-      for (const s of json.data.scores) {
-        if (!s || !s.name || !validScore(s.score)) continue;
-        const key = s.name.toLowerCase();
-        if (!map.has(key) || map.get(key).score < s.score) {
-          map.set(key, {
-            name: s.name.slice(0, 20),
-            score: s.score,
-            date: s.date || new Date().toISOString(),
-          });
-        }
-      }
-
-      const merged = Array.from(map.values())
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 50);
-
-      memory.scores = merged;
-      write();
-      return merged;
-    }
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), 5000) : null;
+    await fetch(SYNC_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({ name, score, date: date || new Date().toISOString() }),
+      signal: controller ? controller.signal : undefined,
+    });
+    if (timer) clearTimeout(timer);
   } catch {}
-  return null;
 }
 
-async function pushCloudScore(name, score) {
-  if (!validScore(score)) return;
-  const cleanName = (name || "").trim().slice(0, 20) || "Pemain Howell";
+async function syncScores() {
+  if (syncing) return memory.scores;
+  syncing = true;
+  read();
+
   try {
-    const res = await fetch(CLOUD_URL, { cache: "no-store" });
-    let currentScores = [];
-    if (res.ok) {
-      const json = await res.json();
-      if (json?.data?.scores && Array.isArray(json.data.scores)) {
-        currentScores = json.data.scores;
-      }
-    }
-
-    const existingIndex = currentScores.findIndex(
-      (s) => s.name.toLowerCase() === cleanName.toLowerCase(),
-    );
-    if (existingIndex >= 0) {
-      if (score >= currentScores[existingIndex].score) {
-        currentScores[existingIndex].score = score;
-        currentScores[existingIndex].date = new Date().toISOString();
-      }
-    } else {
-      currentScores.push({
-        name: cleanName,
-        score,
-        date: new Date().toISOString(),
+    let cloudScores = [];
+    try {
+      const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+      const timer = controller ? setTimeout(() => controller.abort(), 6000) : null;
+      const res = await fetch(`${SYNC_URL}/json?poll=1&since=all`, {
+        cache: "no-store",
+        signal: controller ? controller.signal : undefined,
       });
-    }
+      if (timer) clearTimeout(timer);
 
-    currentScores.sort((a, b) => b.score - a.score);
-    currentScores = currentScores.slice(0, 50);
+      if (res.ok) {
+        const text = await res.text();
+        const lines = text.trim().split("\n");
+        for (const line of lines) {
+          try {
+            const parsed = JSON.parse(line);
+            if (parsed.event === "message" && parsed.message) {
+              const payload = JSON.parse(parsed.message);
+              if (payload && payload.name && validScore(payload.score)) {
+                cloudScores.push(payload);
+              }
+            }
+          } catch {}
+        }
+      }
+    } catch {}
 
-    await fetch(CLOUD_URL, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: "Howell Leaderboard",
-        data: { scores: currentScores },
-      }),
-    });
-  } catch {}
+    const map = new Map();
+
+    const mergeItem = (item) => {
+      if (!item || typeof item.name !== "string" || !validScore(item.score)) return;
+      const name = item.name.trim().slice(0, 20);
+      if (!name) return;
+      const key = name.toLowerCase();
+      const prev = map.get(key);
+      if (!prev) {
+        map.set(key, {
+          name,
+          score: item.score,
+          date: item.date || new Date().toISOString(),
+        });
+      } else {
+        if (item.score > prev.score) {
+          prev.score = item.score;
+          prev.name = name;
+          prev.date = item.date || prev.date;
+        } else if (item.score === prev.score) {
+          if (item.date && prev.date && item.date > prev.date) {
+            prev.date = item.date;
+          }
+        }
+      }
+    };
+
+    DEFAULT_SCORES.forEach(mergeItem);
+    cloudScores.forEach(mergeItem);
+    memory.scores.forEach(mergeItem);
+
+    const merged = Array.from(map.values())
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 50);
+
+    memory.scores = merged;
+    write();
+    return merged;
+  } finally {
+    syncing = false;
+  }
+}
+
+async function fetchCloudScores() {
+  return syncScores();
 }
 
 function setMuted(value) {
@@ -441,6 +497,8 @@ class Audio {
       life: [550, 750, 1000],
       points: [900, 1100, 1400],
       totebag: [580, 780, 980, 1280],
+      time5: [720, 960, 1200],
+      time10: [750, 1000, 1320, 1650],
       tick: [760],
       end: [500, 400, 300],
       record: [660, 880, 990, 1320],
@@ -693,9 +751,20 @@ class Game {
       item = { kind: "damaged" };
     } else if (r < d.bomb + d.damaged + d.bonus) {
       const isTotebag = CONFIG.toteBagExpansion?.enabled && Math.random() < (CONFIG.toteBagExpansion.spawnChance || 0.35);
-      const chosenBonus = isTotebag
-        ? (BONUSES.find((b) => b.id === "totebag") || BONUSES[0])
-        : (BONUSES.filter((b) => b.id !== "totebag")[Math.floor(Math.random() * (BONUSES.length - 1))] || BONUSES[0]);
+      const remainingTime = Math.max(0, (this.state.duration || CONFIG.duration) - this.state.time);
+      let chosenBonus;
+      if (isTotebag) {
+        chosenBonus = BONUSES.find((b) => b.id === "totebag") || BONUSES[0];
+      } else {
+        const otherBonuses = BONUSES.filter((b) => b.id !== "totebag");
+        if (remainingTime <= 16 && Math.random() < 0.45) {
+          chosenBonus = Math.random() < 0.6
+            ? (BONUSES.find((b) => b.id === "time5") || otherBonuses[0])
+            : (BONUSES.find((b) => b.id === "time10") || otherBonuses[0]);
+        } else {
+          chosenBonus = otherBonuses[Math.floor(Math.random() * otherBonuses.length)] || BONUSES[0];
+        }
+      }
       item = {
         kind: "bonus",
         bonus: chosenBonus,
@@ -725,7 +794,8 @@ class Game {
     const elapsed = Math.max(0, (now - this.last) / 1000);
     this.last = now;
     this.fps = 1 / Math.max(0.001, elapsed);
-    const remaining = Math.max(0, CONFIG.duration - this.state.time);
+    const totalDuration = this.state.duration || CONFIG.duration;
+    const remaining = Math.max(0, totalDuration - this.state.time);
     const delta = Math.min(elapsed, remaining),
       endTime = this.state.time + delta;
 
@@ -744,7 +814,7 @@ class Game {
       this.uiTime = 0.08;
     }
 
-    if (this.state.lives === 0 || this.state.time >= CONFIG.duration) {
+    if (this.state.lives === 0 || this.state.time >= totalDuration) {
       this.mode = "ended";
       this.frame = null;
       this.keys.clear();
@@ -812,13 +882,29 @@ class Game {
         if (!result) continue;
         this.audio.play(result.tone);
 
+        const isTotebag = item.bonus?.id === "totebag";
+        const isTime5 = item.bonus?.id === "time5";
+        const isTime10 = item.bonus?.id === "time10";
+        const isTime = isTime5 || isTime10;
+
+        let labelColor = "#f6d343";
+        if (result.negative) labelColor = "#ff7988";
+        else if (isTotebag) labelColor = "#38bdf8";
+        else if (isTime5) labelColor = "#00f5d4";
+        else if (isTime10) labelColor = "#10b981";
+
         this.labels.push({
           text: result.text,
           x: this.x,
           y: opening.y - 30,
           life: 1.1,
-          color: result.negative ? "#ff7988" : (item.bonus?.id === "totebag" ? "#38bdf8" : "#f6d343"),
+          color: labelColor,
         });
+
+        if (result.timeAdded) {
+          this.message = result.text;
+          this.messageTime = 1.3;
+        }
 
         if (item.kind === "product")
           this.entries.push({
@@ -840,16 +926,21 @@ class Game {
         }
 
         if (item.kind === "bonus" || item.kind === "bomb") {
-          const isTotebag = item.bonus?.id === "totebag";
-          const count = isTotebag ? 24 : 14;
+          const count = isTotebag ? 24 : (isTime ? 20 : 14);
           for (let i = 0; i < count; i++)
             this.particles.push({
               x: this.x + (isTotebag ? (Math.random() - 0.5) * opening.width : 0),
               y: opening.y,
-              vx: (Math.random() - 0.5) * (isTotebag ? 280 : 200),
-              vy: -Math.random() * (isTotebag ? 240 : 180),
-              life: isTotebag ? 0.7 : 0.55,
-              color: result.negative ? "#ff7281" : (isTotebag ? (i % 2 === 0 ? "#38bdf8" : "#f6d343") : item.bonus.color),
+              vx: (Math.random() - 0.5) * (isTotebag ? 280 : (isTime ? 240 : 200)),
+              vy: -Math.random() * (isTotebag ? 240 : (isTime ? 220 : 180)),
+              life: isTotebag ? 0.7 : (isTime ? 0.65 : 0.55),
+              color: result.negative
+                ? "#ff7281"
+                : (isTotebag
+                    ? (i % 2 === 0 ? "#38bdf8" : "#f6d343")
+                    : (isTime
+                        ? (i % 2 === 0 ? item.bonus.color : "#ffffff")
+                        : item.bonus.color)),
             });
         }
 
@@ -1023,6 +1114,39 @@ class Game {
       c.textAlign = "center";
       c.textBaseline = "middle";
       c.fillText("+50%", 19, -20);
+    } else if (item.bonus?.id === "time5" || item.bonus?.id === "time10") {
+      const is10 = item.bonus.id === "time10";
+      const glowColor = is10 ? "#10b981" : "#00f5d4";
+      const pulse = 1 + (this.reduced ? 0 : Math.sin(this.state.time * 8 + item.x) * 0.08);
+
+      c.shadowColor = glowColor;
+      c.shadowBlur = this.reduced ? 0 : 16;
+
+      c.fillStyle = is10 ? "#064e3b" : "#083344";
+      c.strokeStyle = glowColor;
+      c.lineWidth = 2.5;
+      c.beginPath();
+      c.arc(0, 0, 24 * pulse, 0, Math.PI * 2);
+      c.fill();
+      c.stroke();
+      c.shadowBlur = 0;
+
+      c.strokeStyle = glowColor;
+      c.lineWidth = 2;
+      c.beginPath();
+      c.moveTo(-4 * pulse, -24 * pulse);
+      c.lineTo(4 * pulse, -24 * pulse);
+      c.stroke();
+
+      c.fillStyle = "#ffffff";
+      c.font = `bold ${is10 ? 14 : 15}px Arial, sans-serif`;
+      c.textAlign = "center";
+      c.textBaseline = "middle";
+      c.fillText(is10 ? "+10s" : "+5s", 0, -2);
+
+      c.fillStyle = glowColor;
+      c.font = "bold 9px Arial, sans-serif";
+      c.fillText(is10 ? "+10 POIN" : "+5 POIN", 0, 10);
     } else {
       c.shadowColor = item.bonus.color;
       c.shadowBlur = this.reduced ? 0 : 15;
@@ -1262,11 +1386,12 @@ function pause() {
 
 function update(g) {
   const s = g.state,
-    left = Math.ceil(CONFIG.duration - s.time);
+    totalDuration = s.duration || CONFIG.duration,
+    left = Math.ceil(totalDuration - s.time);
   $("score").textContent = s.score;
   $("timer").textContent = left;
   $("timer-wrap").classList.toggle("urgent", left <= 5);
-  $("time-fill").style.width = `${(1 - s.time / CONFIG.duration) * 100}%`;
+  $("time-fill").style.width = `${Math.min(100, Math.max(0, (left / totalDuration) * 100))}%`;
   $("lives").textContent =
     "♥".repeat(s.lives) + "♡".repeat(CONFIG.lives - s.lives);
   $("lives").setAttribute("aria-label", `${s.lives} nyawa`);
@@ -1342,6 +1467,15 @@ function renderLeaderboardRows() {
   const list = $("leaderboard-list");
   list.replaceChildren();
 
+  const syncStatusEl = $("leaderboard-sync-status");
+  if (syncStatusEl) {
+    syncStatusEl.textContent = `✓ Terhubung · ${scores.length} pemain tercatat`;
+  }
+
+  const currentNameClean = (currentPlayerName || getLastPlayerName() || "").trim().toLowerCase();
+  let playerRank = -1;
+  let playerScore = 0;
+
   if (!scores.length) {
     const p = document.createElement("p");
     p.className = "notice";
@@ -1349,13 +1483,16 @@ function renderLeaderboardRows() {
       "Belum ada skor tersimpan. Masukkan namamu dan jadilah yang pertama di papan peringkat!";
     list.append(p);
   } else {
-    scores.slice(0, 10).forEach((s, i) => {
+    scores.forEach((s, i) => {
       const row = document.createElement("div");
       row.className = "leader-row";
-      if (
-        s.name.toLowerCase() === (currentPlayerName || "").toLowerCase()
-      ) {
+      const isSelf = currentNameClean && s.name.trim().toLowerCase() === currentNameClean;
+      if (isSelf) {
         row.classList.add("highlight-self");
+        if (playerRank === -1) {
+          playerRank = i + 1;
+          playerScore = s.score;
+        }
       }
 
       const rank = document.createElement("span");
@@ -1378,7 +1515,7 @@ function renderLeaderboardRows() {
         date = document.createElement("small"),
         score = document.createElement("strong");
 
-      name.textContent = s.name;
+      name.textContent = s.name + (isSelf ? " (Kamu)" : "");
       date.textContent = new Date(s.date).toLocaleDateString("id-ID", {
         day: "numeric",
         month: "short",
@@ -1391,12 +1528,22 @@ function renderLeaderboardRows() {
       list.append(row);
     });
   }
+
+  const myRankEl = $("leaderboard-my-rank");
+  if (myRankEl) {
+    if (playerRank > 0) {
+      myRankEl.innerHTML = `📍 Peringkat Kamu: <b>#${playerRank}</b> · ${currentPlayerName || getLastPlayerName()} (<strong>${playerScore}</strong> poin)`;
+      myRankEl.classList.remove("hidden");
+    } else {
+      myRankEl.classList.add("hidden");
+    }
+  }
 }
 
 async function leaderboard() {
   renderLeaderboardRows();
   show("leaderboard");
-  const cloud = await fetchCloudScores();
+  const cloud = await syncScores();
   if (cloud) renderLeaderboardRows();
 }
 
@@ -1430,10 +1577,13 @@ document.querySelectorAll("[data-action],[data-screen]").forEach((button) =>
 
 $("btn-refresh-leaderboard")?.addEventListener("click", async () => {
   const btn = $("btn-refresh-leaderboard");
-  if (btn) btn.textContent = "⏳ Memuat...";
-  await fetchCloudScores();
+  if (btn) btn.textContent = "⏳ Memperbarui...";
+  await syncScores(true);
   renderLeaderboardRows();
-  if (btn) btn.textContent = "↻ Segarkan";
+  if (btn) btn.textContent = "✓ Selesai";
+  setTimeout(() => {
+    if (btn) btn.textContent = "↻ Segarkan";
+  }, 1200);
 });
 
 $("pause").onclick = pause;

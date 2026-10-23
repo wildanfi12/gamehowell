@@ -1,9 +1,23 @@
 const KEY = "howell-catch-win-v1";
-const CLOUD_URL = "https://api.restful-api.dev/objects/ff808181a09d98f701a166ed76586416";
+const SYNC_URL = "https://ntfy.sh/howell_indocomtech_leaderboard_2026";
+
+const DEFAULT_SCORES = [
+  { name: "rida", score: 515, date: "2026-10-23T04:32:00.000Z" },
+  { name: "Andrey", score: 455, date: "2026-10-23T04:29:46.030Z" },
+  { name: "Pemain Howell", score: 400, date: "2026-10-23T04:25:28.263Z" },
+  { name: "wil", score: 380, date: "2026-10-23T04:20:52.568Z" },
+  { name: "Wildan Pratama", score: 350, date: "2026-10-23T04:08:21.558Z" },
+  { name: "dadang", score: 350, date: "2026-10-23T04:09:29.930Z" },
+  { name: "Wildan", score: 280, date: "2026-10-23T03:36:01.834Z" },
+  { name: "Rizky", score: 240, date: "2026-10-23T03:46:01.834Z" },
+  { name: "Budi", score: 195, date: "2026-10-23T03:56:01.834Z" },
+  { name: "Sarah", score: 160, date: "2026-10-23T04:06:01.834Z" },
+];
 
 let memory = { scores: [], muted: false },
   loaded = false,
-  sessionBest = 0;
+  sessionBest = 0,
+  syncing = false;
 
 const validScore = (value) => Number.isSafeInteger(value) && value >= 0;
 
@@ -11,7 +25,8 @@ export function read(force = false) {
   if (loaded && !force) return memory;
   loaded = true;
   try {
-    const data = JSON.parse(localStorage.getItem(KEY));
+    const raw = localStorage.getItem(KEY);
+    const data = raw ? JSON.parse(raw) : null;
     if (data && Array.isArray(data.scores)) {
       memory = {
         muted: !!data.muted,
@@ -31,8 +46,17 @@ export function read(force = false) {
           .sort((a, b) => b.score - a.score)
           .slice(0, 50),
       };
+    } else if (data && typeof data.muted === "boolean") {
+      memory.muted = data.muted;
     }
   } catch {}
+
+  // If memory has no scores yet, seed from DEFAULT_SCORES
+  if (memory.scores.length === 0) {
+    memory.scores = [...DEFAULT_SCORES];
+    write();
+  }
+
   return memory;
 }
 
@@ -77,20 +101,21 @@ export function saveLastPlayerName(name) {
 export function registerPlayer(name, score = 0) {
   read();
   const cleanName = (name || "").trim().slice(0, 20);
-  if (!cleanName) return;
+  if (!cleanName || cleanName.length < 2) return;
   const existing = memory.scores.find(
     (s) => s.name.toLowerCase() === cleanName.toLowerCase(),
   );
+  const now = new Date().toISOString();
   if (!existing) {
     memory.scores.push({
       name: cleanName,
       score: Math.max(0, score),
-      date: new Date().toISOString(),
+      date: now,
     });
     memory.scores.sort((a, b) => b.score - a.score);
     memory.scores = memory.scores.slice(0, 50);
     write();
-    pushCloudScore(cleanName, Math.max(0, score)).catch(() => {});
+    postScoreToCloud(cleanName, Math.max(0, score), now).catch(() => {});
   }
 }
 
@@ -98,111 +123,121 @@ export function saveScore(name, score) {
   read();
   if (!validScore(score)) return false;
   const cleanName = (name || "").trim().slice(0, 20) || "Pemain Howell";
+  const now = new Date().toISOString();
   const existingIndex = memory.scores.findIndex(
     (s) => s.name.toLowerCase() === cleanName.toLowerCase(),
   );
   if (existingIndex >= 0) {
     if (score >= memory.scores[existingIndex].score) {
       memory.scores[existingIndex].score = score;
-      memory.scores[existingIndex].date = new Date().toISOString();
+      memory.scores[existingIndex].date = now;
     }
   } else {
     memory.scores.push({
       name: cleanName,
       score,
-      date: new Date().toISOString(),
+      date: now,
     });
   }
   memory.scores.sort((a, b) => b.score - a.score);
   memory.scores = memory.scores.slice(0, 50);
   const ok = write();
-  pushCloudScore(cleanName, score).catch(() => {});
+  postScoreToCloud(cleanName, score, now).catch(() => {});
   return ok;
 }
 
-export async function fetchCloudScores() {
+async function postScoreToCloud(name, score, date) {
   try {
-    const res = await fetch(CLOUD_URL, { cache: "no-store" });
-    if (!res.ok) return null;
-    const json = await res.json();
-    if (json?.data?.scores && Array.isArray(json.data.scores)) {
-      read();
-      const local = memory.scores;
-      const map = new Map();
-
-      for (const s of local) {
-        if (!s || !s.name || !validScore(s.score)) continue;
-        const key = s.name.toLowerCase();
-        if (!map.has(key) || map.get(key).score < s.score) {
-          map.set(key, s);
-        }
-      }
-
-      for (const s of json.data.scores) {
-        if (!s || !s.name || !validScore(s.score)) continue;
-        const key = s.name.toLowerCase();
-        if (!map.has(key) || map.get(key).score < s.score) {
-          map.set(key, {
-            name: s.name.slice(0, 20),
-            score: s.score,
-            date: s.date || new Date().toISOString(),
-          });
-        }
-      }
-
-      const merged = Array.from(map.values())
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 50);
-
-      memory.scores = merged;
-      write();
-      return merged;
-    }
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), 5000) : null;
+    await fetch(SYNC_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({ name, score, date: date || new Date().toISOString() }),
+      signal: controller ? controller.signal : undefined,
+    });
+    if (timer) clearTimeout(timer);
   } catch {}
-  return null;
 }
 
-export async function pushCloudScore(name, score) {
-  if (!validScore(score)) return;
-  const cleanName = (name || "").trim().slice(0, 20) || "Pemain Howell";
+export async function syncScores() {
+  if (syncing) return memory.scores;
+  syncing = true;
+  read();
+
   try {
-    const res = await fetch(CLOUD_URL, { cache: "no-store" });
-    let currentScores = [];
-    if (res.ok) {
-      const json = await res.json();
-      if (json?.data?.scores && Array.isArray(json.data.scores)) {
-        currentScores = json.data.scores;
-      }
-    }
-
-    const existingIndex = currentScores.findIndex(
-      (s) => s.name.toLowerCase() === cleanName.toLowerCase(),
-    );
-    if (existingIndex >= 0) {
-      if (score >= currentScores[existingIndex].score) {
-        currentScores[existingIndex].score = score;
-        currentScores[existingIndex].date = new Date().toISOString();
-      }
-    } else {
-      currentScores.push({
-        name: cleanName,
-        score,
-        date: new Date().toISOString(),
+    let cloudScores = [];
+    try {
+      const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+      const timer = controller ? setTimeout(() => controller.abort(), 6000) : null;
+      const res = await fetch(`${SYNC_URL}/json?poll=1&since=all`, {
+        cache: "no-store",
+        signal: controller ? controller.signal : undefined,
       });
-    }
+      if (timer) clearTimeout(timer);
 
-    currentScores.sort((a, b) => b.score - a.score);
-    currentScores = currentScores.slice(0, 50);
+      if (res.ok) {
+        const text = await res.text();
+        const lines = text.trim().split("\n");
+        for (const line of lines) {
+          try {
+            const parsed = JSON.parse(line);
+            if (parsed.event === "message" && parsed.message) {
+              const payload = JSON.parse(parsed.message);
+              if (payload && payload.name && validScore(payload.score)) {
+                cloudScores.push(payload);
+              }
+            }
+          } catch {}
+        }
+      }
+    } catch {}
 
-    await fetch(CLOUD_URL, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: "Howell Leaderboard",
-        data: { scores: currentScores },
-      }),
-    });
-  } catch {}
+    const map = new Map();
+
+    const mergeItem = (item) => {
+      if (!item || typeof item.name !== "string" || !validScore(item.score)) return;
+      const name = item.name.trim().slice(0, 20);
+      if (!name) return;
+      const key = name.toLowerCase();
+      const prev = map.get(key);
+      if (!prev) {
+        map.set(key, {
+          name,
+          score: item.score,
+          date: item.date || new Date().toISOString(),
+        });
+      } else {
+        if (item.score > prev.score) {
+          prev.score = item.score;
+          prev.name = name;
+          prev.date = item.date || prev.date;
+        } else if (item.score === prev.score) {
+          if (item.date && prev.date && item.date > prev.date) {
+            prev.date = item.date;
+          }
+        }
+      }
+    };
+
+    DEFAULT_SCORES.forEach(mergeItem);
+    cloudScores.forEach(mergeItem);
+    memory.scores.forEach(mergeItem);
+
+    const merged = Array.from(map.values())
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 50);
+
+    memory.scores = merged;
+    write();
+    return merged;
+  } finally {
+    syncing = false;
+  }
+}
+
+export async function fetchCloudScores() {
+  return syncScores();
 }
 
 export function setMuted(value) {

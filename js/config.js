@@ -99,4 +99,6 @@ export const BONUSES = [
   { id: "life", icon: "♥", label: "Nyawa ekstra", color: "#f57b8b" },
   { id: "points", icon: "+30", label: "Bonus poin", color: "#63d6a0" },
   { id: "totebag", icon: "👜", label: "Totebag +50%", color: "#38bdf8" },
+  { id: "time5", icon: "+5s", label: "+5 Detik", color: "#00f5d4" },
+  { id: "time10", icon: "+10s", label: "+10 Detik", color: "#10b981" },
 ];

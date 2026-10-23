@@ -1012,3 +1012,49 @@ progress {
 .btn-refresh:active {
   transform: scale(0.96);
 }
+
+.leaderboard-sync-status {
+  font-size: 11px;
+  color: #38bdf8;
+  margin-top: -6px;
+  margin-bottom: 10px;
+  opacity: 0.9;
+}
+
+.leaderboard-my-rank {
+  background: linear-gradient(90deg, #1e3a8a, #0369a1);
+  border: 1px solid #38bdf8;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #ffffff;
+  margin-bottom: 12px;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(56, 189, 248, 0.25);
+}
+.leaderboard-my-rank b {
+  color: #ffd700;
+  font-size: 14px;
+}
+.leaderboard-my-rank strong {
+  color: #67e8f9;
+}
+
+#leaderboard-list {
+  max-height: 380px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #38bdf850 #0f172a;
+}
+#leaderboard-list::-webkit-scrollbar {
+  width: 6px;
+}
+#leaderboard-list::-webkit-scrollbar-track {
+  background: #0f172a;
+  border-radius: 3px;
+}
+#leaderboard-list::-webkit-scrollbar-thumb {
+  background: #38bdf860;
+  border-radius: 3px;
+}

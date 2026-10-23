@@ -190,9 +190,20 @@ export class Game {
       item = { kind: "damaged" };
     } else if (r < d.bomb + d.damaged + d.bonus) {
       const isTotebag = CONFIG.toteBagExpansion?.enabled && Math.random() < (CONFIG.toteBagExpansion.spawnChance || 0.35);
-      const chosenBonus = isTotebag
-        ? (BONUSES.find((b) => b.id === "totebag") || BONUSES[0])
-        : (BONUSES.filter((b) => b.id !== "totebag")[Math.floor(Math.random() * (BONUSES.length - 1))] || BONUSES[0]);
+      const remainingTime = Math.max(0, (this.state.duration || CONFIG.duration) - this.state.time);
+      let chosenBonus;
+      if (isTotebag) {
+        chosenBonus = BONUSES.find((b) => b.id === "totebag") || BONUSES[0];
+      } else {
+        const otherBonuses = BONUSES.filter((b) => b.id !== "totebag");
+        if (remainingTime <= 16 && Math.random() < 0.45) {
+          chosenBonus = Math.random() < 0.6
+            ? (BONUSES.find((b) => b.id === "time5") || otherBonuses[0])
+            : (BONUSES.find((b) => b.id === "time10") || otherBonuses[0]);
+        } else {
+          chosenBonus = otherBonuses[Math.floor(Math.random() * otherBonuses.length)] || BONUSES[0];
+        }
+      }
       item = {
         kind: "bonus",
         bonus: chosenBonus,
@@ -222,7 +233,8 @@ export class Game {
     const elapsed = Math.max(0, (now - this.last) / 1000);
     this.last = now;
     this.fps = 1 / Math.max(0.001, elapsed);
-    const remaining = Math.max(0, CONFIG.duration - this.state.time);
+    const totalDuration = this.state.duration || CONFIG.duration;
+    const remaining = Math.max(0, totalDuration - this.state.time);
     const delta = Math.min(elapsed, remaining),
       endTime = this.state.time + delta;
 
@@ -241,7 +253,7 @@ export class Game {
       this.uiTime = 0.08;
     }
 
-    if (this.state.lives === 0 || this.state.time >= CONFIG.duration) {
+    if (this.state.lives === 0 || this.state.time >= totalDuration) {
       this.mode = "ended";
       this.frame = null;
       this.keys.clear();
@@ -309,13 +321,29 @@ export class Game {
         if (!result) continue;
         this.audio.play(result.tone);
 
+        const isTotebag = item.bonus?.id === "totebag";
+        const isTime5 = item.bonus?.id === "time5";
+        const isTime10 = item.bonus?.id === "time10";
+        const isTime = isTime5 || isTime10;
+
+        let labelColor = "#f6d343";
+        if (result.negative) labelColor = "#ff7988";
+        else if (isTotebag) labelColor = "#38bdf8";
+        else if (isTime5) labelColor = "#00f5d4";
+        else if (isTime10) labelColor = "#10b981";
+
         this.labels.push({
           text: result.text,
           x: this.x,
           y: opening.y - 30,
           life: 1.1,
-          color: result.negative ? "#ff7988" : (item.bonus?.id === "totebag" ? "#38bdf8" : "#f6d343"),
+          color: labelColor,
         });
+
+        if (result.timeAdded) {
+          this.message = result.text;
+          this.messageTime = 1.3;
+        }
 
         if (item.kind === "product")
           this.entries.push({
@@ -337,16 +365,21 @@ export class Game {
         }
 
         if (item.kind === "bonus" || item.kind === "bomb") {
-          const isTotebag = item.bonus?.id === "totebag";
-          const count = isTotebag ? 24 : 14;
+          const count = isTotebag ? 24 : (isTime ? 20 : 14);
           for (let i = 0; i < count; i++)
             this.particles.push({
               x: this.x + (isTotebag ? (Math.random() - 0.5) * opening.width : 0),
               y: opening.y,
-              vx: (Math.random() - 0.5) * (isTotebag ? 280 : 200),
-              vy: -Math.random() * (isTotebag ? 240 : 180),
-              life: isTotebag ? 0.7 : 0.55,
-              color: result.negative ? "#ff7281" : (isTotebag ? (i % 2 === 0 ? "#38bdf8" : "#f6d343") : item.bonus.color),
+              vx: (Math.random() - 0.5) * (isTotebag ? 280 : (isTime ? 240 : 200)),
+              vy: -Math.random() * (isTotebag ? 240 : (isTime ? 220 : 180)),
+              life: isTotebag ? 0.7 : (isTime ? 0.65 : 0.55),
+              color: result.negative
+                ? "#ff7281"
+                : (isTotebag
+                    ? (i % 2 === 0 ? "#38bdf8" : "#f6d343")
+                    : (isTime
+                        ? (i % 2 === 0 ? item.bonus.color : "#ffffff")
+                        : item.bonus.color)),
             });
         }
 
@@ -520,6 +553,39 @@ export class Game {
       c.textAlign = "center";
       c.textBaseline = "middle";
       c.fillText("+50%", 19, -20);
+    } else if (item.bonus?.id === "time5" || item.bonus?.id === "time10") {
+      const is10 = item.bonus.id === "time10";
+      const glowColor = is10 ? "#10b981" : "#00f5d4";
+      const pulse = 1 + (this.reduced ? 0 : Math.sin(this.state.time * 8 + item.x) * 0.08);
+
+      c.shadowColor = glowColor;
+      c.shadowBlur = this.reduced ? 0 : 16;
+
+      c.fillStyle = is10 ? "#064e3b" : "#083344";
+      c.strokeStyle = glowColor;
+      c.lineWidth = 2.5;
+      c.beginPath();
+      c.arc(0, 0, 24 * pulse, 0, Math.PI * 2);
+      c.fill();
+      c.stroke();
+      c.shadowBlur = 0;
+
+      c.strokeStyle = glowColor;
+      c.lineWidth = 2;
+      c.beginPath();
+      c.moveTo(-4 * pulse, -24 * pulse);
+      c.lineTo(4 * pulse, -24 * pulse);
+      c.stroke();
+
+      c.fillStyle = "#ffffff";
+      c.font = `bold ${is10 ? 14 : 15}px Arial, sans-serif`;
+      c.textAlign = "center";
+      c.textBaseline = "middle";
+      c.fillText(is10 ? "+10s" : "+5s", 0, -2);
+
+      c.fillStyle = glowColor;
+      c.font = "bold 9px Arial, sans-serif";
+      c.fillText(is10 ? "+10 POIN" : "+5 POIN", 0, 10);
     } else {
       c.shadowColor = item.bonus.color;
       c.shadowBlur = this.reduced ? 0 : 15;

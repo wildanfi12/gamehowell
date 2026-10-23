@@ -17,7 +17,8 @@ export function difficulty(time) {
 }
 
 export function tick(s, dt) {
-  s.time = Math.min(CONFIG.duration, s.time + dt);
+  const maxDur = s.duration || CONFIG.duration;
+  s.time = Math.min(maxDur, s.time + dt);
   for (const key in s.effects)
     s.effects[key] = Math.max(0, s.effects[key] - dt);
 }
@@ -62,7 +63,25 @@ export function collect(s, item) {
     s.score += CONFIG.bonusPoints * (s.effects.double > 0 ? 2 : 1);
   else if (id === "totebag")
     s.effects.totebag = CONFIG.toteBagExpansion.duration;
-  else s.effects[id] = CONFIG.powerups[id];
+  else if (id === "time5") {
+    s.duration = (s.duration || CONFIG.duration) + 5;
+    const pts = 5 * (s.effects.double > 0 ? 2 : 1);
+    s.score += pts;
+    return {
+      text: "+5 DETIK & +5 POIN!",
+      tone: "time5",
+      timeAdded: 5,
+    };
+  } else if (id === "time10") {
+    s.duration = (s.duration || CONFIG.duration) + 10;
+    const pts = 10 * (s.effects.double > 0 ? 2 : 1);
+    s.score += pts;
+    return {
+      text: "+10 DETIK & +10 POIN!",
+      tone: "time10",
+      timeAdded: 10,
+    };
+  } else s.effects[id] = CONFIG.powerups[id];
 
   return {
     text:

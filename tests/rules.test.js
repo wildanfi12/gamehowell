@@ -93,6 +93,35 @@ test("Totebag expansion bonus grants +50% width effect and refreshes duration wi
   assert.equal(s.effects.totebag, 0);
 });
 
+test("Time bonuses (+5s and +10s) add time and points, and extend tick limit", () => {
+  const s = createState();
+  const time5 = BONUSES.find((b) => b.id === "time5");
+  const time10 = BONUSES.find((b) => b.id === "time10");
+  assert.ok(time5, "+5 Detik bonus must be configured");
+  assert.ok(time10, "+10 Detik bonus must be configured");
+
+  const res5 = collect(s, { kind: "bonus", bonus: time5 });
+  assert.equal(res5.text, "+5 DETIK & +5 POIN!");
+  assert.equal(res5.tone, "time5");
+  assert.equal(res5.timeAdded, 5);
+  assert.equal(s.score, 5);
+  assert.equal(s.duration, 35);
+
+  const res10 = collect(s, { kind: "bonus", bonus: time10 });
+  assert.equal(res10.text, "+10 DETIK & +10 POIN!");
+  assert.equal(res10.tone, "time10");
+  assert.equal(res10.timeAdded, 10);
+  assert.equal(s.score, 15);
+  assert.equal(s.duration, 45);
+
+  // Tick can now advance past base 30s up to 45s
+  tick(s, 38);
+  assert.equal(s.time, 38);
+
+  tick(s, 20);
+  assert.equal(s.time, 45); // Clamped at extended duration
+});
+
 test("Totebag opening and clamping accurately expand to 150% and stay within boundaries", () => {
   const g = Object.create(Game.prototype);
   Object.assign(g, {

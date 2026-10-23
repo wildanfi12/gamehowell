@@ -12,6 +12,7 @@ import {
   saveLastPlayerName,
   validatePlayerName,
   registerPlayer,
+  syncScores,
   fetchCloudScores,
 } from "./storage.js";
 import { reward, difficulty } from "./rules.js";
@@ -105,11 +106,12 @@ function pause() {
 
 function update(g) {
   const s = g.state,
-    left = Math.ceil(CONFIG.duration - s.time);
+    totalDuration = s.duration || CONFIG.duration,
+    left = Math.ceil(totalDuration - s.time);
   $("score").textContent = s.score;
   $("timer").textContent = left;
   $("timer-wrap").classList.toggle("urgent", left <= 5);
-  $("time-fill").style.width = `${(1 - s.time / CONFIG.duration) * 100}%`;
+  $("time-fill").style.width = `${Math.min(100, Math.max(0, (left / totalDuration) * 100))}%`;
   $("lives").textContent =
     "♥".repeat(s.lives) + "♡".repeat(CONFIG.lives - s.lives);
   $("lives").setAttribute("aria-label", `${s.lives} nyawa`);
@@ -185,6 +187,15 @@ function renderLeaderboardRows() {
   const list = $("leaderboard-list");
   list.replaceChildren();
 
+  const syncStatusEl = $("leaderboard-sync-status");
+  if (syncStatusEl) {
+    syncStatusEl.textContent = `✓ Terhubung · ${scores.length} pemain tercatat`;
+  }
+
+  const currentNameClean = (currentPlayerName || getLastPlayerName() || "").trim().toLowerCase();
+  let playerRank = -1;
+  let playerScore = 0;
+
   if (!scores.length) {
     const p = document.createElement("p");
     p.className = "notice";
@@ -192,13 +203,16 @@ function renderLeaderboardRows() {
       "Belum ada skor tersimpan. Masukkan namamu dan jadilah yang pertama di papan peringkat!";
     list.append(p);
   } else {
-    scores.slice(0, 10).forEach((s, i) => {
+    scores.forEach((s, i) => {
       const row = document.createElement("div");
       row.className = "leader-row";
-      if (
-        s.name.toLowerCase() === (currentPlayerName || "").toLowerCase()
-      ) {
+      const isSelf = currentNameClean && s.name.trim().toLowerCase() === currentNameClean;
+      if (isSelf) {
         row.classList.add("highlight-self");
+        if (playerRank === -1) {
+          playerRank = i + 1;
+          playerScore = s.score;
+        }
       }
 
       const rank = document.createElement("span");
@@ -221,7 +235,7 @@ function renderLeaderboardRows() {
         date = document.createElement("small"),
         score = document.createElement("strong");
 
-      name.textContent = s.name;
+      name.textContent = s.name + (isSelf ? " (Kamu)" : "");
       date.textContent = new Date(s.date).toLocaleDateString("id-ID", {
         day: "numeric",
         month: "short",
@@ -234,12 +248,22 @@ function renderLeaderboardRows() {
       list.append(row);
     });
   }
+
+  const myRankEl = $("leaderboard-my-rank");
+  if (myRankEl) {
+    if (playerRank > 0) {
+      myRankEl.innerHTML = `📍 Peringkat Kamu: <b>#${playerRank}</b> · ${currentPlayerName || getLastPlayerName()} (<strong>${playerScore}</strong> poin)`;
+      myRankEl.classList.remove("hidden");
+    } else {
+      myRankEl.classList.add("hidden");
+    }
+  }
 }
 
 async function leaderboard() {
   renderLeaderboardRows();
   show("leaderboard");
-  const cloud = await fetchCloudScores();
+  const cloud = await syncScores();
   if (cloud) renderLeaderboardRows();
 }
 
@@ -273,10 +297,13 @@ document.querySelectorAll("[data-action],[data-screen]").forEach((button) =>
 
 $("btn-refresh-leaderboard")?.addEventListener("click", async () => {
   const btn = $("btn-refresh-leaderboard");
-  if (btn) btn.textContent = "⏳ Memuat...";
-  await fetchCloudScores();
+  if (btn) btn.textContent = "⏳ Memperbarui...";
+  await syncScores(true);
   renderLeaderboardRows();
-  if (btn) btn.textContent = "↻ Segarkan";
+  if (btn) btn.textContent = "✓ Selesai";
+  setTimeout(() => {
+    if (btn) btn.textContent = "↻ Segarkan";
+  }, 1200);
 });
 
 $("pause").onclick = pause;
