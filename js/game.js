@@ -140,7 +140,7 @@ export class Game {
 
   opening() {
     const scale = this.bagScale || 1.0;
-    const currentH = CONFIG.bag.height * (1 + (scale - 1) * 0.2);
+    const currentH = CONFIG.bag.height * scale;
     const width = (this.currentBagWidth || CONFIG.bag.width) * CONFIG.bag.openingWidth;
     return {
       x: this.x,
@@ -674,8 +674,9 @@ export class Game {
     }
 
     const opening = this.opening();
+    const scale = this.bagScale || 1.0;
     const currentW = this.currentBagWidth || CONFIG.bag.width;
-    const currentH = CONFIG.bag.height * (1 + ((this.bagScale || 1.0) - 1) * 0.2);
+    const currentH = CONFIG.bag.height * scale;
     const baseY = this.h - CONFIG.bag.base - currentH;
 
     // Shadow on the ground under totebag
@@ -703,31 +704,7 @@ export class Game {
 
     const bag = this.assets.images.get("bag");
 
-    // Totebag expansion visual aura & highlighted opening
-    if (this.bagScale > 1.0) {
-      c.save();
-      c.shadowColor = "#38bdf8";
-      c.shadowBlur = this.reduced ? 0 : 20;
-
-      // Glowing expansion energy aura surrounding the enlarged bag
-      c.strokeStyle = "#38bdf8";
-      c.lineWidth = 3;
-      c.fillStyle = "#0284c718";
-      c.beginPath();
-      c.roundRect(this.x - currentW / 2 - 3, baseY - 3, currentW + 6, currentH + 6, 14);
-      c.fill();
-      c.stroke();
-
-      // Glowing top opening rim matching opening.width exactly
-      c.fillStyle = "#38bdf8";
-      c.beginPath();
-      c.roundRect(opening.x - opening.width / 2, opening.y - 2, opening.width, 5, 2.5);
-      c.fill();
-
-      c.restore();
-    }
-
-    // Authentic Howell Totebag rendered visibly at expanded size (150% width when active)
+    // Authentic Howell Totebag rendered enlarged directly (no artificial blue borders)
     if (bag) {
       fitImage(
         c,
