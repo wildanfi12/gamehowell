@@ -17,6 +17,8 @@ import {
   fetchCloudScores,
 } from "./storage.js";
 import { reward, difficulty } from "./rules.js";
+import { getAllSkins, getSkin } from "./skins.js";
+import { getPlayerProfile, savePlayerProfile, getSelectedSkin, setSelectedSkin, unlockSkinIfEligible, markCelebrationShown } from "./storage.js";
 
 const $ = (id) => document.getElementById(id);
 let current = "loading",
@@ -34,9 +36,13 @@ function show(id) {
     .querySelectorAll(".screen")
     .forEach((s) => s.classList.toggle("hidden", s.id !== id));
   current = id;
+  const name = currentPlayerName || getLastPlayerName();
   if (id === "home") {
-    const name = currentPlayerName || getLastPlayerName();
     $("home-best").textContent = name ? getPlayerBest(name) : 0;
+    const equipped = getSelectedSkin(name);
+    game.setSkin(equipped);
+  } else if (id === "skins") {
+    renderSkinsUI();
   }
   $("cabinet").scrollIntoView({ block: "start" });
 }
@@ -66,7 +72,8 @@ if (assets.missing.length) {
   $("asset-warning").classList.remove("hidden");
 }
 
-const game = new Game($("game"), assets, audio, update, end);
+const initialPlayerName = getLastPlayerName();
+const game = new Game($("game"), assets, audio, update, end, getSelectedSkin(initialPlayerName));
 window.game = game;
 
 // Pre-fetch live cloud scores on initial startup
@@ -184,6 +191,133 @@ function end(state) {
   $("save-status").textContent = "★ Skor kamu tercatat di papan skor booth!";
 
   saveBest(state.score);
+
+  const unlockInfo = unlockSkinIfEligible(player, state.score);
+  if (unlockInfo.showCelebration) {
+    setTimeout(() => {
+      showSkinUnlockCelebration(player);
+    }, 700);
+  }
+}
+
+
+function showSkinUnlockCelebration(player) {
+  const modal = $("skin-unlock-modal");
+  if (!modal) return;
+  modal.classList.remove("hidden");
+  audio.play("unlock");
+
+  $("btn-equip-now").onclick = () => {
+    audio.unlock();
+    audio.play();
+    setSelectedSkin(player, "howell-chomper");
+    game.setSkin("howell-chomper");
+    markCelebrationShown(player);
+    modal.classList.add("hidden");
+    if (current === "skins") renderSkinsUI();
+  };
+
+  $("btn-equip-later").onclick = () => {
+    audio.unlock();
+    audio.play();
+    markCelebrationShown(player);
+    modal.classList.add("hidden");
+  };
+}
+
+function renderSkinsUI() {
+  const player = currentPlayerName || getLastPlayerName() || "Pemain Howell";
+  const profile = getPlayerProfile(player);
+  const container = $("skins-grid");
+  if (!container) return;
+  container.replaceChildren();
+
+  const allSkins = getAllSkins();
+  allSkins.forEach((skin) => {
+    const isChomper = skin.id === "howell-chomper";
+    const isUnlocked = profile.unlockedSkins.includes(skin.id) || (isChomper && profile.highScore >= 750);
+    const isEquipped = profile.selectedSkin === skin.id;
+
+    const card = document.createElement("div");
+    card.className = "skin-card" + (isEquipped ? " equipped" : "") + (isUnlocked ? " unlocked" : " locked");
+
+    const imgWrap = document.createElement("div");
+    imgWrap.className = "skin-card-preview";
+
+    const img = document.createElement("img");
+    img.src = skin.assetPath;
+    img.alt = skin.name;
+    img.className = "skin-card-img" + (isChomper ? " chomper-preview" : "");
+    imgWrap.appendChild(img);
+
+    if (!isUnlocked) {
+      const lockOverlay = document.createElement("div");
+      lockOverlay.className = "skin-lock-overlay";
+      lockOverlay.innerHTML = '<span class="lock-icon">🔒</span><b class="lock-label">BUKA DI 750 POIN</b>';
+      imgWrap.appendChild(lockOverlay);
+    }
+
+    const info = document.createElement("div");
+    info.className = "skin-card-info";
+
+    const title = document.createElement("h3");
+    title.textContent = skin.name;
+
+    const desc = document.createElement("p");
+    desc.className = "skin-card-desc";
+    desc.textContent = skin.description;
+
+    info.appendChild(title);
+    info.appendChild(desc);
+
+    if (!isUnlocked) {
+      const progressBox = document.createElement("div");
+      progressBox.className = "skin-progress-box";
+      const currentPts = profile.highScore || 0;
+      const remaining = Math.max(0, 750 - currentPts);
+      const pct = Math.min(100, Math.round((currentPts / 750) * 100));
+
+      progressBox.innerHTML = `
+        <div class="progress-labels">
+          <span>REKOR: <b>${currentPts} / 750 POIN</b></span>
+          <span>${remaining} poin lagi</span>
+        </div>
+        <div class="skin-progress-track">
+          <div class="skin-progress-bar" style="width: ${pct}%"></div>
+        </div>
+      `;
+      info.appendChild(progressBox);
+    } else {
+      const badge = document.createElement("div");
+      badge.className = "skin-status-badge";
+      badge.textContent = isEquipped ? "SEDANG DIGUNAKAN" : "TERBUKA ✓";
+      info.appendChild(badge);
+    }
+
+    const btn = document.createElement("button");
+    btn.className = "btn-skin-select " + (isEquipped ? "btn-active" : isUnlocked ? "btn-equip" : "btn-locked");
+    if (isEquipped) {
+      btn.textContent = "SEDANG DIGUNAKAN";
+      btn.disabled = true;
+    } else if (isUnlocked) {
+      btn.textContent = "GUNAKAN";
+      btn.onclick = () => {
+        audio.unlock();
+        audio.play();
+        setSelectedSkin(player, skin.id);
+        game.setSkin(skin.id);
+        renderSkinsUI();
+      };
+    } else {
+      btn.textContent = "TERKUNCI";
+      btn.disabled = true;
+    }
+
+    card.appendChild(imgWrap);
+    card.appendChild(info);
+    card.appendChild(btn);
+    container.appendChild(card);
+  });
 }
 
 function renderLeaderboardRows() {
@@ -348,6 +482,10 @@ if (nameInput) {
     const name = nameInput.value.trim();
     currentPlayerName = name;
     $("home-best").textContent = name ? getPlayerBest(name) : 0;
+    if (name) {
+      const prof = getPlayerProfile(name);
+      game.setSkin(prof.selectedSkin);
+    }
   });
   nameInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {

@@ -1060,3 +1060,281 @@ progress {
   background: #38bdf860;
   border-radius: 3px;
 }
+
+/* Skin Collection Button on Home Screen */
+.btn-skins-nav {
+  margin-top: 8px;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  border: 1px solid #38bdf860;
+  color: #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 600;
+  box-shadow: 0 4px 14px rgba(56, 189, 248, 0.15);
+  transition: all 0.2s ease;
+}
+.btn-skins-nav:hover {
+  border-color: #38bdf8;
+  color: #fff;
+  transform: translateY(-1px);
+}
+.btn-skins-nav:active {
+  transform: translateY(1px);
+}
+
+/* Three split buttons on results */
+.split.three-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+.split.three-split button {
+  font-size: 11px;
+  padding: 10px 4px;
+}
+
+/* Skins Screen */
+.skins-subtitle {
+  color: #94a3b8;
+  font-size: 13px;
+  margin-top: -8px;
+  margin-bottom: 16px;
+}
+.skins-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 20px;
+  max-height: 440px;
+  overflow-y: auto;
+  padding-right: 4px;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Skin Card */
+.skin-card {
+  background: #152238;
+  border: 1.5px solid #ffffff15;
+  border-radius: 18px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.skin-card.equipped {
+  border-color: #f6c941;
+  box-shadow: 0 6px 20px rgba(246, 201, 65, 0.2);
+  background: linear-gradient(180deg, #182844 0%, #152238 100%);
+}
+.skin-card.unlocked:not(.equipped) {
+  border-color: #38bdf850;
+}
+.skin-card.locked {
+  opacity: 0.9;
+  border-color: #ffffff10;
+}
+
+/* Preview Image Area */
+.skin-card-preview {
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  background: radial-gradient(circle at center, #1e3352 0%, #0d1726 80%);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.skin-card-img {
+  max-height: 100px;
+  max-width: 100px;
+  object-fit: contain;
+  display: block;
+}
+.skin-card-img.chomper-preview {
+  aspect-ratio: 1 / 1;
+  max-height: 110px;
+  max-width: 110px;
+}
+
+/* Locked Overlay */
+.skin-lock-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 17, 28, 0.78);
+  backdrop-filter: blur(2px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.lock-icon {
+  font-size: 26px;
+}
+.lock-label {
+  font-size: 11px;
+  letter-spacing: 1.2px;
+  color: #ffd700;
+  font-weight: 800;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+}
+
+/* Card Info */
+.skin-card-info h3 {
+  font-size: 16px;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 4px 0;
+  letter-spacing: 0.5px;
+}
+.skin-card-desc {
+  font-size: 11px;
+  color: #94a3b8;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Progress Box for Locked Skin */
+.skin-progress-box {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.progress-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #cbd5e1;
+}
+.progress-labels b {
+  color: #ffd700;
+}
+.skin-progress-track {
+  width: 100%;
+  height: 8px;
+  background: #0f172a;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid #ffffff15;
+}
+.skin-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #f59e0b, #ffd700);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+/* Status Badge */
+.skin-status-badge {
+  display: inline-block;
+  align-self: flex-start;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  margin-top: 6px;
+  background: #0284c725;
+  color: #38bdf8;
+  border: 1px solid #38bdf850;
+}
+.skin-card.equipped .skin-status-badge {
+  background: #eab30825;
+  color: #facc15;
+  border-color: #facc1550;
+}
+
+/* Skin Select Buttons */
+.btn-skin-select {
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.8px;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+.btn-skin-select.btn-active {
+  background: #334155;
+  color: #94a3b8;
+  cursor: default;
+}
+.btn-skin-select.btn-equip {
+  background: linear-gradient(180deg, #ffd700 0%, #eab308 100%);
+  color: #0f172a;
+  box-shadow: 0 4px 12px rgba(234, 179, 8, 0.3);
+}
+.btn-skin-select.btn-equip:active {
+  transform: scale(0.98);
+}
+.btn-skin-select.btn-locked {
+  background: #1e293b;
+  color: #64748b;
+  cursor: not-allowed;
+  border: 1px dashed #ffffff20;
+}
+
+/* Celebration Modal */
+.celebration-modal {
+  text-align: center;
+  padding: 26px 20px;
+  background: linear-gradient(180deg, #16243b 0%, #0c1626 100%);
+  border: 2px solid #ffd700;
+  box-shadow: 0 10px 40px rgba(255, 215, 0, 0.35);
+  position: relative;
+  overflow: hidden;
+}
+.unlock-badge {
+  color: #ffd700;
+  font-size: 11px;
+  letter-spacing: 2px;
+  font-weight: 800;
+}
+.celebration-title {
+  color: #ffffff;
+  font-size: 24px;
+  font-weight: 900;
+  margin: 6px 0 12px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+.celebration-preview {
+  width: 140px;
+  height: 140px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #254168 0%, #111e33 70%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid #ffd700;
+  box-shadow: 0 0 24px rgba(255, 215, 0, 0.4);
+  animation: celebPulse 2s infinite ease-in-out;
+}
+.celebration-img {
+  width: 116px;
+  height: 116px;
+  object-fit: contain;
+}
+.celebration-desc {
+  font-size: 13px;
+  color: #cbd5e1;
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+@keyframes celebPulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 32px rgba(255, 215, 0, 0.6);
+    transform: scale(1.04);
+  }
+}

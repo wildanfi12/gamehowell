@@ -105,6 +105,70 @@ const BONUSES = [
 ];
 
 
+const SKINS = {
+  original: {
+    id: "howell-original",
+    name: "HOWELL ORIGINAL",
+    shortName: "Original",
+    assetKey: "bag",
+    assetPath: "assets/player/howell-totebag.png",
+    requiredScore: 0,
+    defaultUnlocked: true,
+    catchType: "bag",
+    sprite: {
+      width: 108,
+      height: 144,
+      base: 18,
+    },
+    opening: {
+      openingY: 0.27,
+      openingWidth: 0.88,
+    },
+    description: "Totebag autentik HOWELL INDOCOMTECH 2026.",
+  },
+  chomper: {
+    id: "howell-chomper",
+    name: "HOWELL CHOMPER",
+    shortName: "Chomper",
+    assetKey: "chomper",
+    assetPath: "assets/skins/howell-chomper.png",
+    requiredScore: 750,
+    defaultUnlocked: false,
+    catchType: "mouth",
+    sprite: {
+      width: 140,
+      height: 140,
+      base: 14,
+    },
+    mouthHitbox: {
+      // Calibrated from original 1254x1254 PNG:
+      // Mouth pixel bbox: X 627-995 (center 0.647), Y 652-876 (center 0.609)
+      centerX: 0.647,
+      centerY: 0.609,
+      width: 0.25,
+      height: 0.17,
+      openingY: 0.54,
+      // Effective catch width gives equivalent base catch effectiveness to totebag (~92px)
+      openingWidth: 0.66,
+    },
+    description: "Karakter seru penangkap produk dengan mulut terbuka!",
+  },
+};
+
+const DEFAULT_SKIN_ID = "howell-original";
+
+function getSkin(skinId) {
+  if (skinId === "howell-chomper" || skinId === "chomper") {
+    return SKINS.chomper;
+  }
+  return SKINS.original;
+}
+
+function getAllSkins() {
+  return [SKINS.original, SKINS.chomper];
+}
+
+
 function createState() {
   return {
     time: 0,
@@ -507,6 +571,118 @@ function saveBest(score) {
   } catch {}
 }
 
+const PROFILES_KEY = "howell-player-profiles-v1";
+
+function readProfiles() {
+  try {
+    const raw = localStorage.getItem(PROFILES_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeProfiles(map) {
+  try {
+    localStorage.setItem(PROFILES_KEY, JSON.stringify(map));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function getPlayerProfile(name) {
+  const cleanName = (name || "").trim().slice(0, 20) || "Pemain Howell";
+  const key = cleanName.toLowerCase();
+  const profiles = readProfiles();
+  let profile = profiles[key];
+
+  const currentBest = getPlayerBest(cleanName);
+
+  if (!profile) {
+    const alreadyQualified = currentBest >= 750;
+    profile = {
+      version: 1,
+      nickname: cleanName,
+      highScore: currentBest,
+      unlockedSkins: alreadyQualified ? ["howell-original", "howell-chomper"] : ["howell-original"],
+      selectedSkin: "howell-original",
+      unlockCelebrationShown: alreadyQualified,
+    };
+    profiles[key] = profile;
+    writeProfiles(profiles);
+  } else {
+    if (!Array.isArray(profile.unlockedSkins)) {
+      profile.unlockedSkins = ["howell-original"];
+    }
+    if (!profile.unlockedSkins.includes("howell-original")) {
+      profile.unlockedSkins.unshift("howell-original");
+    }
+    if (currentBest >= 750 && !profile.unlockedSkins.includes("howell-chomper")) {
+      profile.unlockedSkins.push("howell-chomper");
+    }
+    profile.highScore = Math.max(profile.highScore || 0, currentBest);
+    if (!profile.selectedSkin) profile.selectedSkin = "howell-original";
+    if (typeof profile.unlockCelebrationShown !== "boolean") {
+      profile.unlockCelebrationShown = profile.highScore >= 750;
+    }
+  }
+
+  return profile;
+}
+
+function savePlayerProfile(profile) {
+  if (!profile || !profile.nickname) return false;
+  const key = profile.nickname.trim().toLowerCase();
+  const profiles = readProfiles();
+  profiles[key] = profile;
+  return writeProfiles(profiles);
+}
+
+function getSelectedSkin(name) {
+  const profile = getPlayerProfile(name);
+  return profile.selectedSkin || "howell-original";
+}
+
+function setSelectedSkin(name, skinId) {
+  const profile = getPlayerProfile(name);
+  if (profile.unlockedSkins.includes(skinId)) {
+    profile.selectedSkin = skinId;
+    savePlayerProfile(profile);
+    return true;
+  }
+  return false;
+}
+
+function unlockSkinIfEligible(name, finalScore) {
+  const profile = getPlayerProfile(name);
+  const score = Math.max(0, Number(finalScore) || 0);
+  if (score >= 750) {
+    const isFirstTime = !profile.unlockedSkins.includes("howell-chomper");
+    if (isFirstTime) {
+      profile.unlockedSkins.push("howell-chomper");
+    }
+    profile.highScore = Math.max(profile.highScore, score);
+    savePlayerProfile(profile);
+    return {
+      unlocked: true,
+      isFirstTime,
+      showCelebration: isFirstTime && !profile.unlockCelebrationShown,
+    };
+  }
+  return {
+    unlocked: profile.unlockedSkins.includes("howell-chomper"),
+    isFirstTime: false,
+    showCelebration: false,
+  };
+}
+
+function markCelebrationShown(name) {
+  const profile = getPlayerProfile(name);
+  profile.unlockCelebrationShown = true;
+  savePlayerProfile(profile);
+}
+
 
 class Audio {
   constructor(muted) {
@@ -523,6 +699,8 @@ class Audio {
     const notes = {
       button: [520],
       catch: [650, 920],
+      chomp: [460, 360, 540],
+      unlock: [523, 659, 784, 1046],
       combo: [660, 880, 1100],
       bomb: [120, 65],
       damage: [220, 160],
@@ -567,6 +745,7 @@ async function loadAssets(progress) {
     ...PRODUCTS.map((p) => [p.id, p.image]),
     ["bag", CONFIG.bagImage],
     ["bomb", CONFIG.bombImage],
+    ["chomper", "assets/skins/howell-chomper.png"],
   ];
   await Promise.all(
     entries.map(
@@ -606,7 +785,9 @@ function fitImage(ctx, image, x, y, w, h) {
 
 
 class Game {
-  constructor(canvas, assets, audio, onUpdate, onEnd) {
+  constructor(canvas, assets, audio, onUpdate, onEnd, skinId = "howell-original") {
+    this.skin = getSkin(skinId);
+    this.chompTimer = 0;
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
     this.assets = assets;
@@ -624,6 +805,7 @@ class Game {
     this.bagScale = 1.0;
     this.currentBagWidth = CONFIG.bag.width;
     this.totebagBonusSpawned = false;
+    this.chompTimer = 0;
     this.keys = new Set();
     this.reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -726,7 +908,26 @@ class Game {
     window.addEventListener("blur", () => this.keys.clear());
   }
 
+  get activeSkin() {
+    return this.skin || getSkin("howell-original");
+  }
+
+  setSkin(skinId) {
+    this.skin = getSkin(skinId);
+    this.x = this.clamp(this.x);
+    this.target = this.clamp(this.target);
+    this.render();
+  }
+
   clamp(x) {
+    const skin = this.activeSkin;
+    if (skin.id === "howell-chomper") {
+      const spriteW = skin.sprite.width;
+      const mouthOffsetX = (skin.mouthHitbox.centerX - 0.5) * spriteW;
+      const minX = 10 + spriteW / 2 + mouthOffsetX;
+      const maxX = CONFIG.width - 10 - spriteW / 2 + mouthOffsetX;
+      return Math.max(minX, Math.min(maxX, x));
+    }
     const half = (this.currentBagWidth || CONFIG.bag.width) / 2;
     return Math.max(
       half + 10,
@@ -735,17 +936,42 @@ class Game {
   }
 
   opening() {
+    const skin = this.activeSkin;
     const scale = this.bagScale || 1.0;
+
+    if (skin.id === "howell-chomper") {
+      const sprite = skin.sprite;
+      const mouth = skin.mouthHitbox;
+      const baseY = this.h - sprite.base - sprite.height;
+      const mouthX = this.x;
+      const mouthY = baseY + sprite.height * mouth.centerY;
+      const openingY = baseY + sprite.height * mouth.openingY;
+      const baseWidth = (this.currentBagWidth || CONFIG.bag.width) * CONFIG.bag.openingWidth;
+      const width = baseWidth * scale;
+      return {
+        x: this.x,
+        y: openingY,
+        width,
+        mouthX,
+        mouthY,
+        height: sprite.height * mouth.height * scale,
+      };
+    }
+
     const currentH = CONFIG.bag.height * scale;
     const width = (this.currentBagWidth || CONFIG.bag.width) * CONFIG.bag.openingWidth;
+    const y =
+      this.h -
+      CONFIG.bag.base -
+      currentH +
+      currentH * CONFIG.bag.openingY;
     return {
       x: this.x,
-      y:
-        this.h -
-        CONFIG.bag.base -
-        currentH +
-        currentH * CONFIG.bag.openingY,
+      y,
       width,
+      mouthX: this.x,
+      mouthY: y + 25,
+      height: 20,
     };
   }
 
@@ -980,9 +1206,19 @@ class Game {
       if (isCaught) {
         const result = collect(this.state, item);
         if (!result) continue;
-        this.audio.play(result.tone);
+
+        const isChomper = this.activeSkin.id === "howell-chomper";
+        if (isChomper && !result.negative) {
+          this.chompTimer = 0.18;
+          this.audio.play("chomp");
+        } else {
+          this.audio.play(result.tone);
+        }
 
         const isTotebag = item.bonus?.id === "totebag";
+        if (isTotebag && this.activeSkin.id === "howell-chomper") {
+          result.text = "CATCH AREA +50%!";
+        }
         const isTime5 = item.bonus?.id === "time5";
         const isTime10 = item.bonus?.id === "time10";
         const isTime = isTime5 || isTime10;
@@ -1052,8 +1288,9 @@ class Game {
 
     for (const i of this.entries) {
       i.life -= dt;
-      i.x += (this.x - i.x) * Math.min(1, dt * 20);
-      i.y += dt * 160;
+      const targetMouthY = opening.mouthY || (opening.y + 25);
+      i.x += (opening.mouthX - i.x) * Math.min(1, dt * 25);
+      i.y += (targetMouthY - i.y) * Math.min(1, dt * 25);
     }
     this.entries = this.entries.filter((i) => i.life > 0);
 
@@ -1074,6 +1311,7 @@ class Game {
     this.shake = Math.max(0, this.shake - dt);
     this.flash = Math.max(0, this.flash - dt);
     this.messageTime = Math.max(0, this.messageTime - dt);
+    if (this.chompTimer > 0) this.chompTimer = Math.max(0, this.chompTimer - dt);
 
     const remaining = Math.ceil(CONFIG.duration - this.state.time);
     if (remaining <= 5 && remaining > 0 && remaining !== this.lastCountdown) {
@@ -1321,25 +1559,81 @@ class Game {
         0.65 + (0.35 * i.life) / 0.24,
       );
 
-    const bag = this.assets.images.get("bag");
+    const skin = this.activeSkin;
 
-    // Authentic Howell Totebag rendered enlarged directly (no artificial blue borders)
-    if (bag) {
-      fitImage(
-        c,
-        bag,
-        this.x - currentW / 2,
-        baseY,
-        currentW,
-        currentH,
-      );
+    if (skin.id === "howell-chomper") {
+      const chomperImg = this.assets.images.get("chomper");
+      const sprite = skin.sprite;
+      const mouthOffsetX = (skin.mouthHitbox.centerX - 0.5) * sprite.width;
+      const spriteCenterLeft = this.x - mouthOffsetX;
+      const spriteTop = this.h - sprite.base - sprite.height;
+
+      // Subtle idle breathing & chomp bite pulse
+      const idleBreathe = this.reduced ? 0 : Math.sin(this.state.time * 4) * 1.5;
+      let chompScale = 1.0;
+      if (this.chompTimer > 0) {
+        const p = 1 - (this.chompTimer / 0.18);
+        chompScale = 1 + Math.sin(p * Math.PI) * 0.08;
+      }
+
+      // Catch area +50% expansion aura around mouth
+      if (this.state.effects.totebag > 0) {
+        const auraPulse = 1 + (this.reduced ? 0 : Math.sin(this.state.time * 9) * 0.08);
+        c.save();
+        c.strokeStyle = "#38bdf8";
+        c.lineWidth = 2.5;
+        c.shadowColor = "#38bdf8";
+        c.shadowBlur = 14;
+        c.setLineDash([4, 4]);
+        c.beginPath();
+        c.ellipse(opening.mouthX, opening.mouthY, (opening.width / 2) * auraPulse, 18 * auraPulse, 0, 0, Math.PI * 2);
+        c.stroke();
+        c.restore();
+      }
+
+      // Bite sparkle / feeding reaction at mouth center
+      if (this.chompTimer > 0) {
+        const cp = 1 - (this.chompTimer / 0.18);
+        c.save();
+        c.fillStyle = `rgba(246, 211, 67, ${(1 - cp) * 0.75})`;
+        c.beginPath();
+        c.arc(opening.mouthX, opening.mouthY, 18 * cp, 0, Math.PI * 2);
+        c.fill();
+        c.restore();
+      }
+
+      // Render HOWELL Chomper face (1:1 ratio preserved, transparent background)
+      if (chomperImg) {
+        c.save();
+        c.translate(spriteCenterLeft, spriteTop + sprite.height / 2 + idleBreathe);
+        c.scale(chompScale, chompScale);
+        fitImage(c, chomperImg, -sprite.width / 2, -sprite.height / 2, sprite.width, sprite.height);
+        c.restore();
+      } else {
+        c.fillStyle = "#e07a5f";
+        c.beginPath();
+        c.arc(this.x, this.h - 80, 50, 0, Math.PI * 2);
+        c.fill();
+      }
     } else {
-      c.fillStyle = "#34506b";
-      c.fillRect(this.x - currentW / 2, opening.y, currentW, this.h - opening.y - 18);
-      c.fillStyle = "white";
-      c.textAlign = "center";
-      c.font = "10px Arial";
-      c.fillText("TOTEBAG SEMENTARA", this.x, opening.y + 35);
+      const bag = this.assets.images.get("bag");
+      if (bag) {
+        fitImage(
+          c,
+          bag,
+          this.x - currentW / 2,
+          baseY,
+          currentW,
+          currentH,
+        );
+      } else {
+        c.fillStyle = "#34506b";
+        c.fillRect(this.x - currentW / 2, opening.y, currentW, this.h - opening.y - 18);
+        c.fillStyle = "white";
+        c.textAlign = "center";
+        c.font = "10px Arial";
+        c.fillText("TOTEBAG SEMENTARA", this.x, opening.y + 35);
+      }
     }
 
     for (const p of this.particles) {
@@ -1361,6 +1655,14 @@ class Game {
     if (CONFIG.debug) {
       c.strokeStyle = "#65ff8c";
       c.strokeRect(opening.x - opening.width / 2, opening.y, opening.width, 3);
+      if (this.activeSkin.id === "howell-chomper") {
+        c.strokeStyle = "#ff00ea";
+        const sprite = this.activeSkin.sprite;
+        const mouthOffsetX = (this.activeSkin.mouthHitbox.centerX - 0.5) * sprite.width;
+        c.strokeRect(this.x - mouthOffsetX - sprite.width / 2, this.h - sprite.base - sprite.height, sprite.width, sprite.height);
+        c.strokeStyle = "#ffff00";
+        c.strokeRect(opening.mouthX - 18, opening.mouthY - 12, 36, 24);
+      }
       for (const i of this.items)
         c.strokeRect(i.x - i.size / 2, i.y - i.size / 2, i.size, i.size);
     }
@@ -1390,9 +1692,13 @@ function show(id) {
     .querySelectorAll(".screen")
     .forEach((s) => s.classList.toggle("hidden", s.id !== id));
   current = id;
+  const name = currentPlayerName || getLastPlayerName();
   if (id === "home") {
-    const name = currentPlayerName || getLastPlayerName();
     $("home-best").textContent = name ? getPlayerBest(name) : 0;
+    const equipped = getSelectedSkin(name);
+    game.setSkin(equipped);
+  } else if (id === "skins") {
+    renderSkinsUI();
   }
   $("cabinet").scrollIntoView({ block: "start" });
 }
@@ -1422,7 +1728,8 @@ if (assets.missing.length) {
   $("asset-warning").classList.remove("hidden");
 }
 
-const game = new Game($("game"), assets, audio, update, end);
+const initialPlayerName = getLastPlayerName();
+const game = new Game($("game"), assets, audio, update, end, getSelectedSkin(initialPlayerName));
 window.game = game;
 
 // Pre-fetch live cloud scores on initial startup
@@ -1540,6 +1847,133 @@ function end(state) {
   $("save-status").textContent = "★ Skor kamu tercatat di papan skor booth!";
 
   saveBest(state.score);
+
+  const unlockInfo = unlockSkinIfEligible(player, state.score);
+  if (unlockInfo.showCelebration) {
+    setTimeout(() => {
+      showSkinUnlockCelebration(player);
+    }, 700);
+  }
+}
+
+
+function showSkinUnlockCelebration(player) {
+  const modal = $("skin-unlock-modal");
+  if (!modal) return;
+  modal.classList.remove("hidden");
+  audio.play("unlock");
+
+  $("btn-equip-now").onclick = () => {
+    audio.unlock();
+    audio.play();
+    setSelectedSkin(player, "howell-chomper");
+    game.setSkin("howell-chomper");
+    markCelebrationShown(player);
+    modal.classList.add("hidden");
+    if (current === "skins") renderSkinsUI();
+  };
+
+  $("btn-equip-later").onclick = () => {
+    audio.unlock();
+    audio.play();
+    markCelebrationShown(player);
+    modal.classList.add("hidden");
+  };
+}
+
+function renderSkinsUI() {
+  const player = currentPlayerName || getLastPlayerName() || "Pemain Howell";
+  const profile = getPlayerProfile(player);
+  const container = $("skins-grid");
+  if (!container) return;
+  container.replaceChildren();
+
+  const allSkins = getAllSkins();
+  allSkins.forEach((skin) => {
+    const isChomper = skin.id === "howell-chomper";
+    const isUnlocked = profile.unlockedSkins.includes(skin.id) || (isChomper && profile.highScore >= 750);
+    const isEquipped = profile.selectedSkin === skin.id;
+
+    const card = document.createElement("div");
+    card.className = "skin-card" + (isEquipped ? " equipped" : "") + (isUnlocked ? " unlocked" : " locked");
+
+    const imgWrap = document.createElement("div");
+    imgWrap.className = "skin-card-preview";
+
+    const img = document.createElement("img");
+    img.src = skin.assetPath;
+    img.alt = skin.name;
+    img.className = "skin-card-img" + (isChomper ? " chomper-preview" : "");
+    imgWrap.appendChild(img);
+
+    if (!isUnlocked) {
+      const lockOverlay = document.createElement("div");
+      lockOverlay.className = "skin-lock-overlay";
+      lockOverlay.innerHTML = '<span class="lock-icon">🔒</span><b class="lock-label">BUKA DI 750 POIN</b>';
+      imgWrap.appendChild(lockOverlay);
+    }
+
+    const info = document.createElement("div");
+    info.className = "skin-card-info";
+
+    const title = document.createElement("h3");
+    title.textContent = skin.name;
+
+    const desc = document.createElement("p");
+    desc.className = "skin-card-desc";
+    desc.textContent = skin.description;
+
+    info.appendChild(title);
+    info.appendChild(desc);
+
+    if (!isUnlocked) {
+      const progressBox = document.createElement("div");
+      progressBox.className = "skin-progress-box";
+      const currentPts = profile.highScore || 0;
+      const remaining = Math.max(0, 750 - currentPts);
+      const pct = Math.min(100, Math.round((currentPts / 750) * 100));
+
+      progressBox.innerHTML = `
+        <div class="progress-labels">
+          <span>REKOR: <b>${currentPts} / 750 POIN</b></span>
+          <span>${remaining} poin lagi</span>
+        </div>
+        <div class="skin-progress-track">
+          <div class="skin-progress-bar" style="width: ${pct}%"></div>
+        </div>
+      `;
+      info.appendChild(progressBox);
+    } else {
+      const badge = document.createElement("div");
+      badge.className = "skin-status-badge";
+      badge.textContent = isEquipped ? "SEDANG DIGUNAKAN" : "TERBUKA ✓";
+      info.appendChild(badge);
+    }
+
+    const btn = document.createElement("button");
+    btn.className = "btn-skin-select " + (isEquipped ? "btn-active" : isUnlocked ? "btn-equip" : "btn-locked");
+    if (isEquipped) {
+      btn.textContent = "SEDANG DIGUNAKAN";
+      btn.disabled = true;
+    } else if (isUnlocked) {
+      btn.textContent = "GUNAKAN";
+      btn.onclick = () => {
+        audio.unlock();
+        audio.play();
+        setSelectedSkin(player, skin.id);
+        game.setSkin(skin.id);
+        renderSkinsUI();
+      };
+    } else {
+      btn.textContent = "TERKUNCI";
+      btn.disabled = true;
+    }
+
+    card.appendChild(imgWrap);
+    card.appendChild(info);
+    card.appendChild(btn);
+    container.appendChild(card);
+  });
 }
 
 function renderLeaderboardRows() {
@@ -1704,6 +2138,10 @@ if (nameInput) {
     const name = nameInput.value.trim();
     currentPlayerName = name;
     $("home-best").textContent = name ? getPlayerBest(name) : 0;
+    if (name) {
+      const prof = getPlayerProfile(name);
+      game.setSkin(prof.selectedSkin);
+    }
   });
   nameInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {

@@ -7,6 +7,7 @@ export async function loadAssets(progress) {
     ...PRODUCTS.map((p) => [p.id, p.image]),
     ["bag", CONFIG.bagImage],
     ["bomb", CONFIG.bombImage],
+    ["chomper", "assets/skins/howell-chomper.png"],
   ];
   await Promise.all(
     entries.map(

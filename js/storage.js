@@ -290,3 +290,115 @@ export function saveBest(score) {
     localStorage.setItem("howell-best", String(sessionBest));
   } catch {}
 }
+
+const PROFILES_KEY = "howell-player-profiles-v1";
+
+function readProfiles() {
+  try {
+    const raw = localStorage.getItem(PROFILES_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeProfiles(map) {
+  try {
+    localStorage.setItem(PROFILES_KEY, JSON.stringify(map));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function getPlayerProfile(name) {
+  const cleanName = (name || "").trim().slice(0, 20) || "Pemain Howell";
+  const key = cleanName.toLowerCase();
+  const profiles = readProfiles();
+  let profile = profiles[key];
+
+  const currentBest = getPlayerBest(cleanName);
+
+  if (!profile) {
+    const alreadyQualified = currentBest >= 750;
+    profile = {
+      version: 1,
+      nickname: cleanName,
+      highScore: currentBest,
+      unlockedSkins: alreadyQualified ? ["howell-original", "howell-chomper"] : ["howell-original"],
+      selectedSkin: "howell-original",
+      unlockCelebrationShown: alreadyQualified,
+    };
+    profiles[key] = profile;
+    writeProfiles(profiles);
+  } else {
+    if (!Array.isArray(profile.unlockedSkins)) {
+      profile.unlockedSkins = ["howell-original"];
+    }
+    if (!profile.unlockedSkins.includes("howell-original")) {
+      profile.unlockedSkins.unshift("howell-original");
+    }
+    if (currentBest >= 750 && !profile.unlockedSkins.includes("howell-chomper")) {
+      profile.unlockedSkins.push("howell-chomper");
+    }
+    profile.highScore = Math.max(profile.highScore || 0, currentBest);
+    if (!profile.selectedSkin) profile.selectedSkin = "howell-original";
+    if (typeof profile.unlockCelebrationShown !== "boolean") {
+      profile.unlockCelebrationShown = profile.highScore >= 750;
+    }
+  }
+
+  return profile;
+}
+
+export function savePlayerProfile(profile) {
+  if (!profile || !profile.nickname) return false;
+  const key = profile.nickname.trim().toLowerCase();
+  const profiles = readProfiles();
+  profiles[key] = profile;
+  return writeProfiles(profiles);
+}
+
+export function getSelectedSkin(name) {
+  const profile = getPlayerProfile(name);
+  return profile.selectedSkin || "howell-original";
+}
+
+export function setSelectedSkin(name, skinId) {
+  const profile = getPlayerProfile(name);
+  if (profile.unlockedSkins.includes(skinId)) {
+    profile.selectedSkin = skinId;
+    savePlayerProfile(profile);
+    return true;
+  }
+  return false;
+}
+
+export function unlockSkinIfEligible(name, finalScore) {
+  const profile = getPlayerProfile(name);
+  const score = Math.max(0, Number(finalScore) || 0);
+  if (score >= 750) {
+    const isFirstTime = !profile.unlockedSkins.includes("howell-chomper");
+    if (isFirstTime) {
+      profile.unlockedSkins.push("howell-chomper");
+    }
+    profile.highScore = Math.max(profile.highScore, score);
+    savePlayerProfile(profile);
+    return {
+      unlocked: true,
+      isFirstTime,
+      showCelebration: isFirstTime && !profile.unlockCelebrationShown,
+    };
+  }
+  return {
+    unlocked: profile.unlockedSkins.includes("howell-chomper"),
+    isFirstTime: false,
+    showCelebration: false,
+  };
+}
+
+export function markCelebrationShown(name) {
+  const profile = getPlayerProfile(name);
+  profile.unlockCelebrationShown = true;
+  savePlayerProfile(profile);
+}

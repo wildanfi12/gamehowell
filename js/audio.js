@@ -15,6 +15,8 @@ export class Audio {
     const notes = {
       button: [520],
       catch: [650, 920],
+      chomp: [460, 360, 540],
+      unlock: [523, 659, 784, 1046],
       combo: [660, 880, 1100],
       bomb: [120, 65],
       damage: [220, 160],
