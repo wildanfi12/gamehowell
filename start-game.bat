@@ -2,7 +2,8 @@
 title HOWELL CATCH & WIN - Game Launcher
 echo ========================================================
 echo   HOWELL CATCH & WIN - INDOCOMTECH 2026
-echo   Memulai Game Server Lokal...
+echo   Membuka Game di Browser...
 echo ========================================================
-node server.js
+start http://127.0.0.1:4173
+node server.mjs
 pause
