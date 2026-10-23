@@ -1,512 +1,503 @@
-/**
- * HOWELL CATCH & WIN - Core Game Engine
- * Manages game loop, state transitions, rendering pipeline, input events, and debug HUD.
- */
-
-import { CONFIG } from './config.js';
-import { Sound } from './audio.js';
-import { Player } from './player.js';
-import { ItemManager, ITEM_TYPES } from './items.js';
-import { CollisionSystem } from './collision.js';
-import { ScoreManager } from './scoring.js';
-import { PowerupManager } from './powerups.js';
-import { UIManager } from './ui.js';
-
-export const GAME_STATES = {
-  LOADING: 'loading',
-  HOME: 'home',
-  COUNTDOWN: 'countdown',
-  PLAYING: 'playing',
-  PAUSED: 'paused',
-  GAMEOVER: 'gameover'
-};
-
+import { CONFIG, BONUSES } from "./config.js";
+import {
+  createState,
+  difficulty,
+  tick,
+  pickProduct,
+  collect,
+  crossesOpening,
+} from "./rules.js";
+import { fitImage } from "./assets.js";
 export class Game {
-  constructor() {
-    this.canvas = document.getElementById('game-canvas');
-    this.ctx = this.canvas.getContext('2d', { alpha: false });
-
-    // State
-    this.state = GAME_STATES.LOADING;
-    this.timeRemaining = CONFIG.GAME.DURATION;
-    this.lives = CONFIG.GAME.INITIAL_LIVES;
-    this.lastFrameTime = 0;
-    this.lastCountdownBeepSecond = -1;
-
-    // Subsystems
-    this.scoreManager = new ScoreManager();
-    this.powerupManager = new PowerupManager();
-    this.player = new Player(CONFIG.GAME.BASE_WIDTH, CONFIG.GAME.BASE_HEIGHT);
-    this.itemManager = new ItemManager(CONFIG.GAME.BASE_WIDTH, CONFIG.GAME.BASE_HEIGHT);
-    this.ui = new UIManager(this);
-
-    // Screen shake
-    this.shakeTime = 0;
-    this.shakeIntensity = 0;
-
-    // Debugging
-    this.debug = CONFIG.ENV.ENABLE_DEBUG || new URLSearchParams(window.location.search).get('debug') === 'true' || new URLSearchParams(window.location.search).get('debug') === '1';
-    this.fps = 60;
-    this.frameCount = 0;
-    this.fpsTimer = 0;
-
-    // Coordinate scaling
-    this.scaleRatio = 1;
-    this.offsetX = 0;
-    this.offsetY = 0;
-
-    this.countdownInterval = null;
-    this.initCanvas();
-    this.initInputs();
-    this.initVisibility();
-  }
-
-  resizeCanvas() {
-    const container = document.getElementById('canvas-container');
-    if (!container) return;
-    const rect = container.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) return;
-
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-
-    this.canvas.width = Math.floor(rect.width * dpr);
-    this.canvas.height = Math.floor(rect.height * dpr);
-    this.canvas.style.width = `${rect.width}px`;
-    this.canvas.style.height = `${rect.height}px`;
-
-    const scaleX = (rect.width * dpr) / CONFIG.GAME.BASE_WIDTH;
-    const scaleY = (rect.height * dpr) / CONFIG.GAME.BASE_HEIGHT;
-    this.scaleRatio = Math.min(scaleX, scaleY);
-
-    this.offsetX = (this.canvas.width - CONFIG.GAME.BASE_WIDTH * this.scaleRatio) / 2;
-    this.offsetY = (this.canvas.height - CONFIG.GAME.BASE_HEIGHT * this.scaleRatio) / 2;
-  }
-
-  initCanvas() {
-    window.addEventListener('resize', () => this.resizeCanvas());
-    window.addEventListener('orientationchange', () => {
-      setTimeout(() => this.resizeCanvas(), 100);
+  constructor(canvas, assets, audio, onUpdate, onEnd) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext("2d");
+    this.assets = assets;
+    this.audio = audio;
+    this.onUpdate = onUpdate;
+    this.onEnd = onEnd;
+    this.state = createState();
+    this.mode = "idle";
+    this.items = [];
+    this.entries = [];
+    this.labels = [];
+    this.particles = [];
+    this.x = 200;
+    this.target = 200;
+    this.keys = new Set();
+    this.reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    this.resize = () => {
+      const r = canvas.getBoundingClientRect();
+      if (!r.width || !r.height) return;
+      this.w = CONFIG.width;
+      this.h = (this.w * r.height) / r.width;
+      const dpr = Math.min(devicePixelRatio || 1, CONFIG.maxDpr);
+      canvas.width = Math.round(r.width * dpr);
+      canvas.height = Math.round(r.height * dpr);
+      this.scale = canvas.width / this.w;
+      this.target = this.clamp(this.target);
+      this.x = this.clamp(this.x);
+      this.render();
+    };
+    this.observer = new ResizeObserver(this.resize);
+    this.observer.observe(canvas);
+    const move = (e) => {
+      if (this.mode !== "running") return;
+      const r = canvas.getBoundingClientRect();
+      this.target = this.clamp(((e.clientX - r.left) / r.width) * this.w);
+    };
+    canvas.addEventListener("pointerdown", (e) => {
+      if (
+        this.mode !== "running" ||
+        this.activePointer != null ||
+        e.isPrimary === false ||
+        e.button > 0
+      )
+        return;
+      this.activePointer = e.pointerId;
+      this.dragging = true;
+      canvas.setPointerCapture(e.pointerId);
+      move(e);
     });
-    this.resizeCanvas();
-  }
-
-  initInputs() {
-    let isDragging = false;
-
-    const handlePointerMove = (clientX) => {
-      if (this.state !== GAME_STATES.PLAYING && this.state !== GAME_STATES.COUNTDOWN) return;
-
-      const rect = this.canvas.getBoundingClientRect();
-      const relativeX = clientX - rect.left;
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const canvasPx = relativeX * dpr;
-
-      if (this.scaleRatio > 0) {
-        const virtualX = (canvasPx - this.offsetX) / this.scaleRatio;
-        this.player.moveTo(virtualX);
+    canvas.addEventListener("pointermove", (e) => {
+      if (this.dragging && e.pointerId === this.activePointer) move(e);
+    });
+    const release = (e) => {
+      if (e.pointerId === this.activePointer) {
+        this.activePointer = null;
+        this.dragging = false;
       }
     };
-
-    const getClientX = (e) => {
-      if (e.clientX !== undefined) return e.clientX;
-      if (e.touches && e.touches[0]) return e.touches[0].clientX;
-      if (e.changedTouches && e.changedTouches[0]) return e.changedTouches[0].clientX;
-      return this.canvas.getBoundingClientRect().left + this.canvas.clientWidth / 2;
-    };
-
-    const onPointerDown = (e) => {
-      isDragging = true;
-      Sound.ensureContext();
-      handlePointerMove(getClientX(e));
-    };
-
-    const onPointerMove = (e) => {
-      if (!isDragging) return;
-      handlePointerMove(getClientX(e));
-    };
-
-    const onPointerUp = () => {
-      isDragging = false;
-    };
-
-    const frame = document.getElementById('game-frame');
-    frame.addEventListener('pointerdown', onPointerDown, { passive: true });
-    window.addEventListener('pointermove', onPointerMove, { passive: true });
-    window.addEventListener('pointerup', onPointerUp, { passive: true });
-    window.addEventListener('pointercancel', onPointerUp, { passive: true });
-
-    // Touch events explicitly
-    frame.addEventListener('touchstart', onPointerDown, { passive: true });
-    window.addEventListener('touchmove', onPointerMove, { passive: true });
-    window.addEventListener('touchend', onPointerUp, { passive: true });
-
-    // Desktop Keyboard controls (Left/Right arrow keys and A/D keys)
-    window.addEventListener('keydown', (e) => {
-      if (this.state !== GAME_STATES.PLAYING) return;
-      const step = 45;
-      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
-        this.player.moveTo(this.player.x + this.player.width / 2 - step);
-      } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
-        this.player.moveTo(this.player.x + this.player.width / 2 + step);
+    canvas.addEventListener("pointerup", release);
+    canvas.addEventListener("pointercancel", release);
+    canvas.addEventListener("lostpointercapture", release);
+    window.addEventListener("keydown", (e) => {
+      if (
+        this.mode === "running" &&
+        ["ArrowLeft", "ArrowRight", "a", "d"].includes(e.key)
+      ) {
+        e.preventDefault();
+        this.keys.add(e.key);
       }
     });
+    window.addEventListener("keyup", (e) => this.keys.delete(e.key));
+    window.addEventListener("blur", () => this.keys.clear());
   }
-
-  initVisibility() {
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden && this.state === GAME_STATES.PLAYING) {
-        this.pause();
-      }
-    });
+  clamp(x) {
+    return Math.max(
+      CONFIG.bag.width / 2 + 10,
+      Math.min(CONFIG.width - CONFIG.bag.width / 2 - 10, x),
+    );
   }
-
-  startCountdownAndPlay() {
-    if (this.countdownInterval) {
-      clearInterval(this.countdownInterval);
-      this.countdownInterval = null;
-    }
-
-    this.scoreManager.reset();
-    this.powerupManager.reset();
-    this.itemManager.reset();
-    this.timeRemaining = CONFIG.GAME.DURATION;
-    this.lives = CONFIG.GAME.INITIAL_LIVES;
-    this.lastCountdownBeepSecond = -1;
-
-    // Refresh player totebag image from asset cache
-    this.player.image = Assets.getImage('howell-totebag');
-
-    // Reset player position to center
-    this.player.x = (CONFIG.GAME.BASE_WIDTH - this.player.width) / 2;
-    this.player.targetX = this.player.x;
-
-    this.ui.showScreen('gameplay');
-    this.resizeCanvas();
-    this.ui.updateHUD(this.scoreManager.score, this.timeRemaining, this.lives, []);
-
-    // 3.. 2.. 1.. GO overlay
-    const overlay = document.getElementById('countdown-overlay');
-    const numberEl = document.getElementById('countdown-number');
-    overlay.classList.remove('hidden');
-    overlay.style.display = 'flex';
-    overlay.style.pointerEvents = 'none';
-
-    this.state = GAME_STATES.COUNTDOWN;
-    let count = 3;
-    numberEl.textContent = count;
-    numberEl.className = 'countdown-num pulse';
-    Sound.playClick();
-
-    this.countdownInterval = setInterval(() => {
-      count--;
-      if (count > 0) {
-        numberEl.textContent = count;
-        numberEl.className = 'countdown-num pulse';
-        Sound.playClick();
-      } else if (count === 0) {
-        numberEl.textContent = 'MULAI!';
-        numberEl.className = 'countdown-num go pulse';
-        Sound.playBonus();
-
-        // Start the game loop immediately!
-        this.state = GAME_STATES.PLAYING;
-        this.lastFrameTime = performance.now();
-
-        // Ensure canvas scale is correct
-        this.resizeCanvas();
-
-        // Smoothly dismiss the countdown overlay
-        setTimeout(() => {
-          overlay.classList.add('hidden');
-          overlay.style.display = 'none';
-        }, 500);
-
-        clearInterval(this.countdownInterval);
-        this.countdownInterval = null;
-      }
-    }, 700);
+  opening() {
+    return {
+      x: this.x,
+      y:
+        this.h -
+        CONFIG.bag.base -
+        CONFIG.bag.height +
+        CONFIG.bag.height * CONFIG.bag.openingY,
+      width: CONFIG.bag.width * CONFIG.bag.openingWidth,
+    };
   }
-
+  start() {
+    this.stop();
+    this.state = createState();
+    this.items = [];
+    this.entries = [];
+    this.labels = [];
+    this.particles = [];
+    this.spawnTime = 0.3;
+    this.x = this.target = CONFIG.width / 2;
+    this.shake = 0;
+    this.flash = 0;
+    this.lastCountdown = 6;
+    this.message = "";
+    this.messageTime = 0;
+    this.spawnLane = -1;
+    this.mode = "running";
+    this.resize();
+    this.last = performance.now();
+    this.uiTime = 0;
+    this.frame = requestAnimationFrame((t) => this.loop(t));
+    this.onUpdate(this);
+  }
+  stop() {
+    cancelAnimationFrame(this.frame);
+    this.frame = null;
+    this.keys.clear();
+    this.dragging = false;
+    this.activePointer = null;
+    this.mode = "idle";
+  }
   pause() {
-    if (this.state !== GAME_STATES.PLAYING) return;
-    this.state = GAME_STATES.PAUSED;
-    this.ui.showScreen('pause');
+    if (this.mode !== "running") return;
+    this.mode = "paused";
+    cancelAnimationFrame(this.frame);
+    this.frame = null;
+    this.keys.clear();
+    this.dragging = false;
+    this.activePointer = null;
   }
-
   resume() {
-    if (this.state !== GAME_STATES.PAUSED) return;
-    this.state = GAME_STATES.PLAYING;
-    this.lastFrameTime = performance.now();
-    this.ui.showScreen('gameplay');
+    if (this.mode !== "paused") return;
+    this.mode = "running";
+    this.last = performance.now();
+    this.frame = requestAnimationFrame((t) => this.loop(t));
   }
-
-  quitToHome() {
-    this.state = GAME_STATES.HOME;
-    this.ui.showScreen('home');
+  spawn() {
+    if (this.items.length >= CONFIG.maxItems) return;
+    const d = difficulty(this.state.time),
+      r = Math.random();
+    let item = { kind: "product", product: pickProduct() };
+    if (r < d.bomb) item = { kind: "bomb" };
+    else if (r < d.bomb + d.damaged) item = { kind: "damaged" };
+    else if (r < d.bomb + d.damaged + d.bonus)
+      item = {
+        kind: "bonus",
+        bonus: BONUSES[Math.floor(Math.random() * BONUSES.length)],
+      };
+    let lane = Math.floor(Math.random() * 5);
+    if (lane === this.spawnLane)
+      lane = (lane + 1 + Math.floor(Math.random() * 4)) % 5;
+    this.spawnLane = lane;
+    Object.assign(item, {
+      x: 42 + lane * 79 + (Math.random() - 0.5) * 12,
+      y: -50,
+      size: item.kind === "bomb" ? CONFIG.bombSize : CONFIG.itemSize,
+      angle: (Math.random() - 0.5) * 0.3,
+      speed: d.speed * (0.9 + Math.random() * 0.2),
+      collected: false,
+    });
+    this.items.push(item);
   }
-
-  gameOver() {
-    this.state = GAME_STATES.GAMEOVER;
-    const finalScore = this.scoreManager.score;
-    const isNewHigh = finalScore > Storage.getHighScore();
-
-    if (isNewHigh) {
-      Storage.setHighScore(finalScore);
-      Sound.playHighScore();
-    } else {
-      Sound.playGameOver();
+  loop(now) {
+    if (this.mode !== "running") return;
+    const elapsed = Math.max(0, (now - this.last) / 1000);
+    this.last = now;
+    this.fps = 1 / Math.max(0.001, elapsed);
+    const remaining = Math.max(0, CONFIG.duration - this.state.time);
+    const delta = Math.min(elapsed, remaining),
+      endTime = this.state.time + delta;
+    // Consume real active time in small physics steps instead of dropping slow frames.
+    let pending = delta;
+    while (pending > 0 && this.state.lives > 0) {
+      const step = Math.min(pending, 1 / 60);
+      this.update(step);
+      pending -= step;
     }
-
-    this.ui.showResults(finalScore, isNewHigh);
-  }
-
-  update(dt) {
-    if (this.state !== GAME_STATES.PLAYING) return;
-
-    // Safety check: ensure canvas scale is valid
-    if (this.scaleRatio <= 0 || this.canvas.width === 0) {
-      this.resizeCanvas();
+    if (this.state.lives > 0) this.state.time = endTime;
+    this.render();
+    this.uiTime -= elapsed;
+    if (this.uiTime <= 0) {
+      this.onUpdate(this);
+      this.uiTime = 0.08;
     }
-
-    // 1. Timer countdown
-    this.timeRemaining -= dt;
-    const remainingSeconds = Math.ceil(this.timeRemaining);
-
-    // Audio warning on last 5 seconds (beep once per second)
-    if (remainingSeconds <= 5 && remainingSeconds > 0 && remainingSeconds !== this.lastCountdownBeepSecond) {
-      this.lastCountdownBeepSecond = remainingSeconds;
-      Sound.playCountdownTick();
-    }
-
-    if (this.timeRemaining <= 0) {
-      this.timeRemaining = 0;
-      this.gameOver();
+    if (this.state.lives === 0 || this.state.time >= CONFIG.duration) {
+      this.mode = "ended";
+      this.frame = null;
+      this.keys.clear();
+      this.activePointer = null;
+      this.dragging = false;
+      this.onUpdate(this);
+      this.onEnd(this.state);
       return;
     }
-
-    // 2. Power-ups duration updates
-    this.powerupManager.update(dt);
-    const slowFactor = this.powerupManager.getSlowFactor();
-    const magnetState = this.powerupManager.getMagnetState();
-
-    // 3. Player update
-    this.player.update(dt);
-
-    // 4. Items update
-    const bagZone = this.player.getCatchZone();
-    const gameElapsed = CONFIG.GAME.DURATION - this.timeRemaining;
-    this.itemManager.update(dt, gameElapsed, slowFactor, magnetState, bagZone);
-
-    // 5. Collision checks
-    this.checkCollisions(bagZone);
-
-    // 6. Score & particle system update
-    this.scoreManager.update(dt);
-
-    // 7. Screen shake decay
-    if (this.shakeTime > 0) {
-      this.shakeTime -= dt;
-      if (this.shakeTime <= 0) {
-        this.shakeIntensity = 0;
-      }
-    }
-
-    // 8. Update HUD
-    this.ui.updateHUD(
-      this.scoreManager.score,
-      this.timeRemaining,
-      this.lives,
-      this.powerupManager.getActiveList()
-    );
+    this.frame = requestAnimationFrame((t) => this.loop(t));
   }
-
-  checkCollisions(bagZone) {
-    for (const item of this.itemManager.items) {
-      if (item.caught || item.isDead) continue;
-
-      if (CollisionSystem.checkCatch(item, bagZone)) {
-        item.caught = true;
-        item.isDead = true;
-
-        const hitX = item.x + item.width / 2;
-        const hitY = bagZone.openingY;
-
-        // Handle collision based on item category
-        if (item.type === ITEM_TYPES.PRODUCT) {
-          // Positive Howell product!
-          const mult = this.powerupManager.getScoreMultiplier();
-          this.scoreManager.addScore(item.points, mult, hitX, hitY);
-          this.player.onCatch(item);
-          Sound.playCatch();
-        } else if (item.type === ITEM_TYPES.BOMB) {
-          // Bomb hazard
-          this.lives -= item.penaltyLife;
-          this.scoreManager.breakCombo(hitX, hitY);
-          this.shake(CONFIG.HAZARDS.BOMB.shakeDuration / 1000, CONFIG.HAZARDS.BOMB.shakeIntensity);
-          this.ui.triggerDamageFlash();
-          Sound.playBomb();
-
-          if (this.lives <= 0) {
-            this.lives = 0;
-            this.gameOver();
-            return;
-          }
-        } else if (item.type === ITEM_TYPES.DAMAGED) {
-          // Damaged product hazard
-          this.scoreManager.deductScore(item.penaltyScore, hitX, hitY);
-          Sound.playDamaged();
-        } else if (item.type === ITEM_TYPES.POWERUP) {
-          // Power-up collected!
-          const activated = this.powerupManager.activate(item.powerupType);
-          if (activated) {
-            if (activated.type === 'heart') {
-              this.lives = Math.min(CONFIG.GAME.MAX_LIVES, this.lives + activated.lifeAdd);
-            } else if (activated.type === 'bonus30') {
-              this.scoreManager.addScore(activated.bonusScore, 1, hitX, hitY, true);
-            }
-          }
-          this.scoreManager.addFloatingLabel(item.name, hitX, hitY, '#ffd700', 18, true);
-          this.player.onCatch(item);
-          Sound.playBonus();
+  update(dt) {
+    tick(this.state, dt);
+    if (this.keys.has("ArrowLeft") || this.keys.has("a"))
+      this.target = this.clamp(this.target - dt * 480);
+    if (this.keys.has("ArrowRight") || this.keys.has("d"))
+      this.target = this.clamp(this.target + dt * 480);
+    this.x += (this.target - this.x) * (1 - Math.exp(-25 * dt));
+    this.spawnTime -= dt;
+    if (this.spawnTime <= 0) {
+      this.spawn();
+      this.spawnTime = difficulty(this.state.time).interval;
+    }
+    const opening = this.opening();
+    for (const item of this.items) {
+      if (item.collected) continue;
+      const previousY = item.y;
+      if (
+        item.kind === "product" &&
+        this.state.effects.magnet > 0 &&
+        Math.abs(item.x - this.x) < CONFIG.magnetRange &&
+        item.y > opening.y - 230 &&
+        item.y < opening.y
+      ) {
+        item.x +=
+          Math.sign(this.x - item.x) *
+          Math.min(Math.abs(this.x - item.x), dt * CONFIG.magnetSpeed);
+      }
+      item.y +=
+        item.speed * dt * (this.state.effects.slow > 0 ? CONFIG.slowFactor : 1);
+      if (crossesOpening(item, previousY, opening)) {
+        const result = collect(this.state, item);
+        if (!result) continue;
+        this.audio.play(result.tone);
+        this.labels.push({
+          text: result.text,
+          x: this.x,
+          y: opening.y - 25,
+          life: 1,
+          color: result.negative ? "#ff7988" : "#f6d343",
+        });
+        if (item.kind === "product")
+          this.entries.push({
+            ...item,
+            life: 0.24,
+            startX: item.x,
+            startY: item.y,
+          });
+        if (result.negative) {
+          this.shake = 0.2;
+          this.flash = 0.18;
         }
+        if (result.combo) {
+          this.message = result.combo;
+          this.messageTime = 1.4;
+          this.audio.play("combo");
+        }
+        if (item.kind === "bonus" || item.kind === "bomb")
+          for (let i = 0; i < 14; i++)
+            this.particles.push({
+              x: this.x,
+              y: opening.y,
+              vx: (Math.random() - 0.5) * 200,
+              vy: -Math.random() * 180,
+              life: 0.55,
+              color: result.negative ? "#ff7281" : item.bonus.color,
+            });
+        if (this.state.lives === 0) break;
       }
     }
+    this.items = this.items.filter((i) => !i.collected && i.y < this.h + 80);
+    for (const i of this.entries) {
+      i.life -= dt;
+      i.x += (this.x - i.x) * Math.min(1, dt * 20);
+      i.y += dt * 160;
+    }
+    this.entries = this.entries.filter((i) => i.life > 0);
+    for (const p of this.labels) {
+      p.life -= dt;
+      p.y -= dt * 35;
+    }
+    this.labels = this.labels.filter((p) => p.life > 0);
+    for (const p of this.particles) {
+      p.life -= dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vy += dt * 320;
+    }
+    this.particles = this.particles.filter((p) => p.life > 0);
+    this.shake = Math.max(0, this.shake - dt);
+    this.flash = Math.max(0, this.flash - dt);
+    this.messageTime = Math.max(0, this.messageTime - dt);
+    const remaining = Math.ceil(CONFIG.duration - this.state.time);
+    if (remaining <= 5 && remaining > 0 && remaining !== this.lastCountdown) {
+      this.lastCountdown = remaining;
+      this.audio.play("tick");
+    }
   }
+  drawItem(item, alpha = 1, scale = 1) {
+    const c = this.ctx,
+      size = item.size * scale;
+    c.save();
+    c.globalAlpha = alpha;
+    c.translate(item.x, item.y);
+    c.rotate(item.angle || 0);
+    if (item.kind === "product") {
+      const g = c.createRadialGradient(0, 0, 2, 0, 0, size * 0.65);
+      g.addColorStop(0, "#9bc4e44d");
+      g.addColorStop(1, "#9bc4e400");
+      c.fillStyle = g;
+      c.beginPath();
+      c.arc(0, 0, size * 0.65, 0, Math.PI * 2);
+      c.fill();
+      const image = this.assets.images.get(item.product.id);
+      if (image) fitImage(c, image, -size / 2, -size / 2, size, size);
+      else {
+        c.fillStyle = "#315477";
+        c.fillRect(-size / 2, -size / 3, size, size * 0.66);
+        c.fillStyle = "#fff";
+        c.font = "9px Arial";
+        c.textAlign = "center";
+        c.fillText(item.product.name, 0, 0, size - 5);
+        c.font = "7px Arial";
+        c.fillText("ASET BELUM TERSEDIA", 0, 13, size - 5);
+      }
+    } else if (item.kind === "bomb") {
+      const bomb = this.assets.images.get("bomb");
+      if (bomb) {
+        // Animate the entire original bitmap; never redraw or replace its PAJAK lettering.
+        const phase =
+          this.state.time * CONFIG.bombAnimation.rate + item.x * 0.01;
+        const pulse = this.reduced
+          ? 1
+          : 1 + Math.sin(phase * 1.4) * CONFIG.bombAnimation.pulse;
+        if (!this.reduced)
+          c.rotate(Math.sin(phase) * CONFIG.bombAnimation.sway);
+        c.shadowColor = "#ffac32";
+        c.shadowBlur = this.reduced ? 0 : 5 + 4 * (1 + Math.sin(phase * 1.4));
+        fitImage(
+          c,
+          bomb,
+          (-size * pulse) / 2,
+          (-size * pulse) / 2,
+          size * pulse,
+          size * pulse,
+        );
+        c.restore();
+        return;
+      }
+      // Safe fallback only when the supplied image cannot load.
 
-  shake(duration, intensity) {
-    this.shakeTime = duration;
-    this.shakeIntensity = intensity;
+      c.strokeStyle = "#ffc94d";
+      c.lineWidth = 3;
+      c.beginPath();
+      c.moveTo(5, -20);
+      c.quadraticCurveTo(7, -38, 21, -27);
+      c.stroke();
+      c.fillStyle = "#ffdc55";
+      c.font = "20px Arial";
+      c.fillText("✦", 15, -22);
+      c.fillStyle = "#ed5465";
+      c.beginPath();
+      c.arc(0, 3, 23, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = "#222c3b";
+      c.beginPath();
+      c.arc(0, 1, 19, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = "white";
+      c.font = "bold 24px Arial";
+      c.textAlign = "center";
+      c.fillText("!", 0, 10);
+    } else if (item.kind === "damaged") {
+      c.fillStyle = "#b48965";
+      c.fillRect(-23, -21, 46, 43);
+      c.strokeStyle = "#624d40";
+      c.lineWidth = 3;
+      c.beginPath();
+      c.moveTo(0, -21);
+      c.lineTo(-7, -7);
+      c.lineTo(5, 2);
+      c.lineTo(-3, 21);
+      c.stroke();
+      c.fillStyle = "#eb4355";
+      c.beginPath();
+      c.arc(20, -16, 12, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = "white";
+      c.font = "bold 18px Arial";
+      c.textAlign = "center";
+      c.fillText("!", 20, -10);
+    } else {
+      c.shadowColor = item.bonus.color;
+      c.shadowBlur = this.reduced ? 0 : 15;
+      c.fillStyle = "#192d3f";
+      c.strokeStyle = item.bonus.color;
+      c.lineWidth = 2;
+      c.beginPath();
+      c.arc(0, 0, 24, 0, Math.PI * 2);
+      c.fill();
+      c.stroke();
+      c.shadowBlur = 0;
+      c.fillStyle = item.bonus.color;
+      c.font = "bold 23px Arial";
+      c.textAlign = "center";
+      c.textBaseline = "middle";
+      c.fillText(item.bonus.icon, 0, 1);
+    }
+    c.restore();
   }
-
   render() {
-    const ctx = this.ctx;
-
-    // Reset full canvas
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = '#0b111e';
-    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-    // Apply scale & offset to target virtual 450 x 800 space
-    let shakeX = 0;
-    let shakeY = 0;
-    if (this.shakeTime > 0) {
-      shakeX = (Math.random() - 0.5) * this.shakeIntensity * this.scaleRatio;
-      shakeY = (Math.random() - 0.5) * this.shakeIntensity * this.scaleRatio;
+    if (!this.scale) return;
+    const c = this.ctx;
+    c.setTransform(this.scale, 0, 0, this.scale, 0, 0);
+    c.clearRect(0, 0, this.w, this.h);
+    c.save();
+    if (this.shake && !this.reduced)
+      c.translate((Math.random() - 0.5) * 5, (Math.random() - 0.5) * 5);
+    c.strokeStyle = "#43608016";
+    c.lineWidth = 1;
+    for (let y = 30; y < this.h; y += 46) {
+      c.beginPath();
+      c.moveTo(20, y);
+      c.lineTo(this.w - 20, y);
+      c.stroke();
     }
-
-    ctx.setTransform(
-      this.scaleRatio, 0, 0, this.scaleRatio,
-      this.offsetX + shakeX,
-      this.offsetY + shakeY
-    );
-
-    // Draw tech background inside virtual canvas
-    this.drawBackground(ctx);
-
-    // Render items
-    this.itemManager.render(ctx);
-
-    // Render player (Howell Totebag)
-    this.player.render(ctx);
-
-    // Render floating labels & catch particles
-    this.scoreManager.render(ctx);
-
-    // Render debug overlays if enabled
-    if (this.debug) {
-      this.renderDebug(ctx);
+    for (let x = 32; x < this.w; x += 48) {
+      c.beginPath();
+      c.moveTo(x, 15);
+      c.lineTo(x, this.h);
+      c.stroke();
     }
-  }
-
-  drawBackground(ctx) {
-    // Futuristic tech grid & ambient glow
-    const w = CONFIG.GAME.BASE_WIDTH;
-    const h = CONFIG.GAME.BASE_HEIGHT;
-
-    // Subtle dark gradient with high contrast for black products
-    const grad = ctx.createLinearGradient(0, 0, 0, h);
-    grad.addColorStop(0, '#15243f');
-    grad.addColorStop(0.35, '#0e182b');
-    grad.addColorStop(0.75, '#090e1a');
-    grad.addColorStop(1, '#05070d');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, w, h);
-
-    // Subtle electronic grid lines
-    ctx.save();
-    ctx.strokeStyle = 'rgba(0, 150, 255, 0.05)';
-    ctx.lineWidth = 1;
-    const gridSize = 45;
-    for (let x = 0; x < w; x += gridSize) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, h);
-      ctx.stroke();
+    const opening = this.opening();
+    c.fillStyle = "#0005";
+    c.beginPath();
+    c.ellipse(this.x, this.h - 18, 63, 9, 0, 0, Math.PI * 2);
+    c.fill();
+    if (this.state.effects.magnet > 0) {
+      c.strokeStyle = "#50b9ff55";
+      c.setLineDash([5, 6]);
+      c.beginPath();
+      c.arc(this.x, opening.y, CONFIG.magnetRange, Math.PI, 0);
+      c.stroke();
+      c.setLineDash([]);
     }
-    for (let y = 0; y < h; y += gridSize) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(w, y);
-      ctx.stroke();
+    for (const i of this.items) this.drawItem(i);
+    for (const i of this.entries)
+      this.drawItem(
+        i,
+        Math.max(0, i.life / 0.24),
+        0.65 + (0.35 * i.life) / 0.24,
+      );
+    const bag = this.assets.images.get("bag");
+    if (bag)
+      fitImage(
+        c,
+        bag,
+        this.x - CONFIG.bag.width / 2,
+        this.h - CONFIG.bag.base - CONFIG.bag.height,
+        CONFIG.bag.width,
+        CONFIG.bag.height,
+      );
+    else {
+      c.fillStyle = "#34506b";
+      c.fillRect(this.x - 54, opening.y, 108, this.h - opening.y - 18);
+      c.fillStyle = "white";
+      c.textAlign = "center";
+      c.font = "10px Arial";
+      c.fillText("TOTEBAG SEMENTARA", this.x, opening.y + 35);
     }
-
-    // Bottom soft blue runway glow behind totebag
-    const bottomGlow = ctx.createRadialGradient(w / 2, h - 40, 20, w / 2, h - 40, w * 0.6);
-    bottomGlow.addColorStop(0, 'rgba(0, 102, 255, 0.16)');
-    bottomGlow.addColorStop(1, 'rgba(0, 102, 255, 0)');
-    ctx.fillStyle = bottomGlow;
-    ctx.fillRect(0, h - 160, w, 160);
-
-    ctx.restore();
-  }
-
-  renderDebug(ctx) {
-    // Hitboxes
-    this.itemManager.renderDebug(ctx);
-    this.player.renderDebug(ctx);
-
-    // HUD Text
-    ctx.save();
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-    ctx.fillRect(10, 10, 190, 110);
-    ctx.strokeStyle = '#00ff88';
-    ctx.strokeRect(10, 10, 190, 110);
-
-    ctx.fillStyle = '#00ff88';
-    ctx.font = '11px monospace';
-    const gameElapsed = CONFIG.GAME.DURATION - this.timeRemaining;
-    const phase = this.itemManager.getCurrentDifficulty(gameElapsed);
-
-    ctx.fillText(`FPS: ${this.fps}`, 16, 26);
-    ctx.fillText(`State: ${this.state}`, 16, 42);
-    ctx.fillText(`Active Items: ${this.itemManager.items.length}`, 16, 58);
-    ctx.fillText(`Diff: ${phase.name} (${phase.baseFallSpeed} px/s)`, 16, 74);
-    ctx.fillText(`Spawn: ${phase.spawnInterval}s`, 16, 90);
-    ctx.fillText(`Scale: ${this.scaleRatio.toFixed(2)}x`, 16, 106);
-    ctx.restore();
-  }
-
-  start() {
-    this.lastFrameTime = performance.now();
-    const loop = (timestamp) => {
-      const dt = Math.min((timestamp - this.lastFrameTime) / 1000, 0.1); // clamp to max 100ms
-      this.lastFrameTime = timestamp;
-
-      // Calculate FPS
-      this.frameCount++;
-      this.fpsTimer += dt;
-      if (this.fpsTimer >= 0.5) {
-        this.fps = Math.round((this.frameCount / this.fpsTimer));
-        this.frameCount = 0;
-        this.fpsTimer = 0;
-      }
-
-      this.update(dt);
-      this.render();
-
-      requestAnimationFrame(loop);
-    };
-
-    requestAnimationFrame(loop);
+    for (const p of this.particles) {
+      c.globalAlpha = Math.max(0, p.life / 0.55);
+      c.fillStyle = p.color;
+      c.fillRect(p.x, p.y, 4, 4);
+    }
+    c.globalAlpha = 1;
+    for (const p of this.labels) {
+      c.globalAlpha = Math.min(1, p.life * 2);
+      c.fillStyle = p.color;
+      c.font = "bold 16px Arial";
+      c.textAlign = "center";
+      c.fillText(p.text, p.x, p.y);
+    }
+    c.globalAlpha = 1;
+    if (CONFIG.debug) {
+      c.strokeStyle = "#65ff8c";
+      c.strokeRect(opening.x - opening.width / 2, opening.y, opening.width, 3);
+      for (const i of this.items)
+        c.strokeRect(i.x - i.size / 2, i.y - i.size / 2, i.size, i.size);
+    }
+    if (this.flash) {
+      c.fillStyle = `rgba(255,50,80,${this.flash * 0.7})`;
+      c.fillRect(0, 0, this.w, this.h);
+    }
+    c.restore();
   }
 }

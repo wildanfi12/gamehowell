@@ -1,194 +1,82 @@
-# HOWELL CATCH & WIN
-## Official Promotional Mobile Web Arcade Game — INDOCOMTECH 2026
+# HOWELL Catch & Win
 
-**HOWELL CATCH & WIN** adalah game mobile web arcade 2D berkecepatan tinggi yang dikembangkan secara khusus untuk pengunjung booth **HOWELL Indonesia di pameran INDOCOMTECH 2026**.
+Game arcade web berbahasa Indonesia untuk demo INDOCOMTECH 2026. Dibangun dengan Canvas, ES modules, CSS, dan Web Audio. Tanpa framework, CDN, font eksternal, atau instalasi paket.
 
-Pemain mengendalikan **Totebag Resmi HOWELL** di bagian bawah layar untuk menangkap berbagai produk elektronik & kabel resmi HOWELL yang berjatuhan dari atas layar selama **30 detik**, sambil menghindari bom dan barang rusak untuk mengumpulkan skor tertinggi dan memenangkan hadiah pameran.
+## Membuka langsung (paling mudah)
 
----
+Buka `HOWELL-MAIN-LANGSUNG.html` yang diberikan terpisah dengan klik ganda, lalu pilih Chrome atau Edge. Semua gambar, CSS, dan JavaScript sudah berada di dalam file tersebut; tidak perlu server, Node.js, atau koneksi internet.
 
-## 🎮 Fitur Utama Game
+Untuk versi folder, ekstrak ZIP seluruhnya dahulu, lalu buka `index.html`. Versi ini sekarang memakai script biasa sehingga tidak lagi bergantung pada ES modules saat dibuka langsung. Jangan membuka index.html dari dalam pratinjau ZIP.
 
-1. **Aset Produk Asli 100% Authentic HOWELL**:
-   - 10 Produk Asli HOWELL dengan poin berbeda:
-     - **TWS** (+20 poin)
-     - **Earphone** (+15 poin)
-     - **AUDIO CABLE** (+10 poin)
-     - **POWER CABLE** (+10 poin)
-     - **Adapter HW-C04** (+20 poin)
-     - **TWS HW02** (+20 poin)
-     - **CAT 8 FTP Cable** (+15 poin)
-     - **DisplayPort 16K Cable** (+15 poin)
-     - **HDMI 16K Cable** (+15 poin)
-     - **USB 2.0 AM - AM** (+10 poin)
-2. **Catcher Totebag HOWELL Asli**:
-   - Menggunakan foto totebag resmi HOWELL dengan proporsi autentik.
-   - Deteksi tangkapan tepat di bibir bukaan tas (*opening catch zone* di bawah tali selempang).
-   - Animasi item terhisap dan masuk ke dalam kantong tas totebag secara realistis.
-3. **Rintangan & Bahaya**:
-   - 💣 **Bom Arcade**: Mengurangi 1 hati/nyawa, efek ledakan partikel, guncangan layar (*screen shake*), dan kilatan merah. Game selesai jika 3 nyawa habis.
-   - ⚠️ **Barang Rusak (RUSAK)**: Mengurangi 10 poin dan mereset combo beruntun.
-4. **Power-Up Items**:
-   - **Double Score (2X)**: Menggandakan poin tangkapan selama 5 detik.
-   - **Magnet Produk**: Menarik produk HOWELL terdekat langsung ke totebag selama 4 detik (tidak menarik bom/barang rusak).
-   - **Slow Motion**: Memperlambat laju jatuhnya barang selama 3 detik.
-   - **Extra Life (+1)**: Menambah 1 hati nyawa (maksimal 3).
-   - **Bonus Poin (+30)**: Langsung menambahkan +30 poin instan.
-5. **Sistem Combo Beruntun**:
-   - 3x Tangkapan Berturut-turut: **NICE!** (+5 Poin)
-   - 5x Tangkapan Berturut-turut: **GREAT!** (+10 Poin)
-   - 10x Tangkapan Berturut-turut: **HOWELL MASTER!** (+25 Poin)
-6. **Sistem Audio Web Audio API**:
-   - Suara arcade retro 8-bit responsif berlatensi 0ms tanpa perlu unduhan file audio eksternal.
-   - SFX: Klik tombol, tangkap produk, power-up, combo, ledakan bom, barang rusak, hitungan 5 detik terakhir, game over, dan lagu perayaan high score.
-   - Tombol Mute/Unmute audio.
-7. **Papan Peringkat (Leaderboard Demo)**:
-   - Menyimpan Top 10 skor tertinggi pengunjung secara lokal via `LocalStorage`.
-   - Form input nama panggilan pengunjung setelah permainan selesai.
-8. **Sistem Hadiah Pameran (Reward Tiers)**:
-   - `0 - 80 Poin`: **Voucher Partisipasi** (Diskon 10% di booth)
-   - `81 - 150 Poin`: **Hadiah Kecil** (Gantungan Kunci / Merchandise)
-   - `151 - 220 Poin`: **Aksesori HOWELL** (Kabel High-Speed pilihan)
-   - `221+ Poin`: **Hadiah Spesial** (TWS / Adapter Fast Charger GaN 65W)
-   - Disertai kode voucher simulasi demo untuk ditunjukkan ke staf booth.
+## Menjalankan lewat server (opsional)
 
----
+1. Ekstrak ZIP ke folder pilihan.
+2. Pasang Node.js LTS bila belum tersedia.
+3. Buka terminal di folder yang berisi `package.json`.
+4. Jalankan `npm start`.
+5. Buka `http://127.0.0.1:4173`.
 
-## 📁 Struktur Direktori Proyek
+Alternatif jika Python tersedia: `python -m http.server 8080 --bind 127.0.0.1`, lalu buka `http://127.0.0.1:8080`. Server bawaan hanya mendengarkan localhost. Untuk mencoba di smartphone, gunakan hosting HTTPS sebagaimana langkah GitHub Pages di bawah.
 
-```text
-howell-catch-win/
-├── index.html                  # Halaman utama game
-├── css/
-│   ├── style.css               # Desain global, tema teknologi, tombol, modal
-│   ├── game.css                # HUD gameplay, animasi, layar hasil & tutorial
-│   └── responsive.css          # Desain adaptif portrait 9:16 & safe-area iOS/Android
-├── js/
-│   ├── config.js               # Konfigurasi terpusat (skor, aset, kesulitan, audio)
-│   ├── storage.js              # Penyimpanan skor & pengaturan ke LocalStorage
-│   ├── assetManager.js         # Preloader aset dengan fallback dinamis
-│   ├── audio.js                # Web Audio API Synthesizer (SFX & BGM)
-│   ├── player.js               # Kontrol totebag, animasi telan item & fisika tilt
-│   ├── items.js                # Sistem item jatuh, spawner & magnet
-│   ├── powerups.js             # Durasi & multiplier power-up
-│   ├── scoring.js              # Logika skor, combo, teks melayang & partikel
-│   ├── collision.js            # Algoritma tabrakan zona bukaan totebag
-│   ├── rewards.js              # Penentuan tier hadiah & arsitektur klaim
-│   ├── leaderboard.js          # Pengelolaan daftar peringkat pemain
-│   ├── ui.js                   # Manajemen perpindahan layar & update HUD
-│   ├── game.js                 # Game loop requestAnimationFrame 60 FPS
-│   └── main.js                 # Entry point inisialisasi & developer debug
-├── assets/
-│   ├── branding/
-│   │   ├── howell-logo.png
-│   │   └── howell-logo-white.png
-│   ├── player/
-│   │   ├── howell-totebag.png
-│   │   └── hd/
-│   ├── products/
-│   │   ├── tws.png
-│   │   ├── earphone.png
-│   │   ├── audio-cable.png
-│   │   ├── power-cable.png
-│   │   ├── adapter-hwc04.png
-│   │   ├── tws-hw02.png
-│   │   ├── cat8-ftp.png
-│   │   ├── displayport-16k.png
-│   │   ├── hdmi-16k.png
-│   │   ├── usb2-am-am.png
-│   │   └── hd/
-│   └── icons/
-│       ├── bomb.svg
-│       ├── damaged.svg
-│       ├── powerup-2x.svg
-│       ├── powerup-magnet.svg
-│       ├── powerup-slow.svg
-│       ├── powerup-heart.svg
-│       └── powerup-bonus30.svg
-├── README.md
-└── .gitignore
-```
+Setelah mengedit modul sumber di `js/`, jalankan `node build.mjs` untuk memperbarui `js/app.js` dan file HTML satu berkas. `index.html` menggunakan `js/app.js`.
 
----
+## Fitur
 
-## 🚀 Panduan Menjalankan Secara Lokal
+- 30 detik, tiga nyawa, 10 jenis produk asli dengan poin konfigurabel.
+- Tote bag asli; kontrol drag Pointer Events, mouse, dan tombol panah/A/D.
+- Tabrakan hanya ketika produk melewati bukaan tas. Produk masuk dengan mengecil dan memudar di belakang foto tas.
+- Bom, paket rusak generik, lima bonus: poin ganda 5 detik, magnet 4 detik, lambat 3 detik, nyawa maksimal tiga, dan +30 poin. Bonus +30 juga digandakan ketika poin ganda aktif.
+- Kombo 3, 5, 10 tangkapan: KEREN!, HEBAT!, MASTER HOWELL! Kombo direset oleh hazard, bukan produk yang terlewat.
+- Kesulitan bertahap pada detik 10 dan 20. Lane spawn bergantian untuk mengurangi tumpukan.
+- Layar loading, beranda, tutorial, gameplay, jeda, hasil, papan skor, dan hadiah.
+- Pause otomatis saat tab tersembunyi atau jendela kehilangan fokus. Resume manual.
+- Efek suara sintetis, tanpa file audio eksternal; audio dimulai setelah interaksi pengguna. Tidak ada musik latar.
+- Rekor otomatis disimpan. Papan skor perlu tombol Simpan setelah memasukkan nama; satu entri per ronde. Maksimum 50 entri disimpan, 20 ditampilkan. Tidak ada data yang dikirim ke server.
+- Reduced motion, safe-area, penyesuaian ukuran canvas, dan DPR maksimum 2.
 
-Game ini menggunakan standard ES Modules (`import/export`), sehingga perlu dijalankan menggunakan web server lokal ringan:
+## Konfigurasi
 
-### Cara 1: Menggunakan Node.js `npx serve` (Paling Cepat)
-Buka Terminal/PowerShell di folder game dan ketik:
-```bash
-npx serve . -p 8080
-```
-Lalu buka browser di: `http://localhost:8080`
+Edit `js/config.js`: durasi, nyawa, ukuran objek dan tas, nilai poin, bobot produk, interval spawn, probabilitas hazard/bonus, kecepatan tiap tahap, durasi bonus, volume, ambang hadiah, dan lokasi aset. `debug: true` menampilkan FPS, jumlah objek, state, interval, kecepatan, dan hitbox bukaan tas.
 
-### Cara 2: Menggunakan VS Code Live Server
-1. Buka folder `howell-catch-win` di Visual Studio Code.
-2. Pasang ekstensi **Live Server**.
-3. Klik kanan pada file `index.html` dan pilih **Open with Live Server**.
+`mode: 'demo'` mendokumentasikan lingkungan aktif. Mengganti nilainya tidak mengaktifkan layanan hadiah: demo UI tetap berlaku sampai integrasi server yang sebenarnya dibuat.
 
-### Cara 3: Menggunakan Python (Jika terpasang)
-```bash
-python -m http.server 8080
-```
+## Aset
 
----
+Semua 10 foto produk dan totebag berasal dari file individual yang diberikan pengguna. Salinan runtime dipotong hanya pada margin transparan, lalu diperkecil proporsional ke maksimum 520 piksel dan dikompresi PNG lossless. Isi produk, warna, label, dan branding tidak digambar ulang. File sumber pada drive D tidak diubah. Total gambar sekitar 2,6 MB.
 
-## 🌐 Akses Langsung di Booth & Panduan Deployment
+Pemetaan file terdapat di `PRODUCTS` pada `js/config.js`. Totebag ada di `assets/player/howell-totebag.png`. Ganti file tersebut dengan PNG transparan resmi dengan proporsi yang sama. Untuk tas berbeda, kalibrasikan `bag.openingY`, `openingWidth`, `width`, dan `height`, lalu cek hitbox dengan debug. Aset hilang memunculkan penanda sementara dan pemberitahuan tanpa menghentikan game.
 
-Game ini dapat dimainkan langsung secara praktis **tanpa perlu QR Code**:
+**Aset yang belum tersedia:** file logo HOWELL mandiri. Header saat ini memakai teks tipografis sementara; bukan reproduksi logo resmi. Logo asli tetap terlihat pada totebag dan foto produk. Situs referensi `https://wildanfi12.github.io/Howell/` tidak dapat diakses saat pengerjaan. Untuk mengganti header, tambahkan logo resmi ke `assets/branding/` lalu ganti isi tautan `#brand` dengan elemen img berukuran proporsional. Warna aksen diambil secara visual dari tas, bukan klaim kode warna merek resmi.
 
-### 1. Mainkan Langsung di Tablet / Kiosk Booth (Layar Display)
-- Buka browser di tablet, smartphone display, atau layar sentuh laptop di booth.
-- Jalankan `start-game.bat` (atau `http://localhost:8080`).
-- Tekan **F11** di keyboard (atau menu browser **Add to Home screen / Fullscreen**) agar game tampil penuh layaknya aplikasi native.
-- Pengunjung yang mampir ke booth bisa langsung antre dan bermain bergantian di perangkat yang disediakan!
+## GitHub dan GitHub Pages
 
-### 2. Akses via Tautan Web Langsung (GitHub Pages)
-Jika ingin game bisa dibuka online cukup dengan membagikan atau mengetikkan link langsung:
-1. Masukkan proyek ke repositori GitHub:
-   ```bash
-   git init
-   git add .
-   git commit -m "feat: complete Howell Catch & Win mobile game for Indocomtech 2026"
-   git branch -M main
-   git remote add origin https://github.com/USERNAME/howell-catch-win.git
-   git push -u origin main
-   ```
-2. Buka GitHub > **Settings** > **Pages**:
-   - Di bagian **Source**, pilih branch `main` dan folder `/ (root)`. Klik **Save**.
-3. Game langsung dapat diakses siapa saja melalui URL:
-   `https://USERNAME.github.io/howell-catch-win/`
-   *(Pengunjung atau staf cukup membuka link tersebut langsung di browser HP masing-masing)*.
+1. Buat repository baru, misalnya `howell-catch-win`, di akun GitHub Anda.
+2. Pilih **Add file → Upload files**. Unggah isi folder ini: index.html, css, js, assets, dan berkas lain. Pastikan index.html langsung berada di root repository, bukan dalam folder tambahan.
+3. Commit perubahan ke branch `main`.
+4. Di **Settings → Pages**, pilih **Deploy from a branch**, branch **main**, folder **/(root)**, lalu Save.
+5. Tunggu proses deployment selesai. Alamat biasanya `https://NAMA-AKUN.github.io/howell-catch-win/`; gunakan URL yang ditampilkan GitHub Pages.
+6. Buka URL pada ponsel Android dan iPhone, uji drag, audio, jeda, dan satu ronde penuh sebelum dipakai di booth.
 
----
+Semua jalur CSS, JavaScript, dan gambar relatif sehingga dapat digunakan pada subdirektori proyek GitHub Pages. Tidak perlu build. File `server.mjs` hanya untuk pratinjau lokal, bukan backend hadiah.
 
-## 🛠️ Mode Debug Pengembang (Developer Debug Mode)
+## QR code
 
-Mode debug memvisualisasikan:
-- FPS aktual (Target 60 FPS).
-- Jumlah objek jatuh aktif di memori.
-- Fase kesulitan (Easy / Medium / Hard) dan kecepatan jatuh (px/detik).
-- Interval spawn objek.
-- **Garis kotak tabrakan (*hitboxes*)** untuk setiap produk, bom, dan power-up.
-- **Zona bukaan mulut totebag (*mouth collision opening*)**.
+Setelah URL HTTPS terbit, buka halaman di Chrome dan gunakan menu berbagi **Create QR code/Buat kode QR** jika tersedia, atau generator QR tepercaya dengan URL publik tersebut. Unduh PNG/SVG, cetak dengan kontras tinggi dan ruang putih, lalu pindai hasil cetaknya menggunakan Android dan iPhone. Jangan gunakan localhost untuk QR booth. Belum ada QR final karena game belum dipublikasikan.
 
-### Cara Mengaktifkan Mode Debug:
-1. **Desktop**: Tekan tombol `D` pada keyboard.
-2. **Mobile**: Ketuk logo HOWELL sebanyak 3 kali secara cepat di layar menu.
-3. **URL Param**: Buka game dengan parameter `?debug=1` (misal: `index.html?debug=1`).
+## Hadiah dan keamanan produksi
 
----
+Hadiah adalah simulasi. Tidak ada stok nyata, kode klaim, atau penukaran yang aktif. Papan skor dan rekor di LocalStorage bisa dimanipulasi dan tidak boleh menjadi dasar pemberian hadiah nyata.
 
-## 🔒 Arsitektur Integrasi Hadiah Produksi
+`js/backend.js` menyediakan kontrak klien opsional. Lihat `BACKEND.md` untuk desain validasi sesi, stok, claim, otorisasi petugas, dan transaksi. Modul ini sengaja tidak dihubungkan ke demo; server harus dibangun serta diuji sebelum aktivasi produksi. Tidak ada API secret pada frontend.
 
-Saat menghubungkan ke server produksi untuk validasi hadiah fisik:
-1. Client mengirim payload sesi permainan terenkripsi (skor, timestamp mulai-selesai, token sesi acak).
-2. Backend memvalidasi integritas data (memastikan waktu bermain tepat 30 detik dan perolehan skor realistis).
-3. Backend menerbitkan kode klaim voucher tunggal (*single-use claim token/code*).
-4. Staf booth memvalidasi kode voucher menggunakan portal/aplikasi staf HOWELL untuk menandai hadiah telah diambil dan mencatat pengurangan stok barang secara *real-time*.
+## Pengujian
 
----
+Jalankan `npm test`. Rincian pengujian aktual dan keterbatasannya tersedia di `TESTING.md`.
 
-© 2026 PT Howell Niaga Indonesia. Seluruh hak cipta dilindungi undang-undang.
-INDOCOMTECH 2026 Exhibition Promotional Project.
+## Struktur
+
+`js/config.js`: konfigurasi dan manifest. `rules.js`: aturan murni. `game.js`: loop, input, spawn, collision, rendering, efek. `assets.js`: preload dan fit proporsional. `audio.js`: suara. `main.js`: layar dan interaksi. `storage.js`: penyimpanan lokal. `backend.js`: kontrak integrasi opsional. `tests/`: pengujian Node bawaan.
+
+## Pembaruan bom PAJAK
+Bom menggunakan assets/products/bomb-pajak.png, salinan identik dari aset pengguna. Tulisan dan font PAJAK tetap bagian gambar asli. Animasi memakai rotasi lembut, perubahan skala proporsional, dan cahaya berdenyut; berhenti saat jeda dan mengikuti reduced-motion. Ukuran bom 82 piksel logis dapat diubah di CONFIG.bombSize. File HTML langsung sudah menyertakan gambar ini. Total aset sekarang 12 gambar.
+
