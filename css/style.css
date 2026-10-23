@@ -18,6 +18,9 @@
 }
 body {
   margin: 0;
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
 }
 button,
 a,
@@ -841,17 +844,27 @@ progress {
   }
 }
 @media (max-width: 800px) {
+  html,
+  body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
   .arcade {
     padding: 0;
     display: block;
+    width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
   }
   .desktop-note,
   .desktop-meta {
     display: none;
   }
   .cabinet {
-    width: 100%;
-    max-width: 500px;
+    width: 100vw;
+    max-width: 100vw;
+    min-width: 0;
     margin: auto;
     min-height: 100dvh;
     border: 0;
@@ -861,11 +874,17 @@ progress {
     padding-bottom: env(safe-area-inset-bottom);
   }
   .screen {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     min-height: calc(
       100dvh - 83px - env(safe-area-inset-top) - env(safe-area-inset-bottom)
     );
   }
   .play {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     height: calc(
       100dvh - 83px - env(safe-area-inset-top) - env(safe-area-inset-bottom)
     );
@@ -880,6 +899,24 @@ progress {
   }
   .home-actions {
     padding-top: 18px;
+  }
+  .hud {
+    width: 100%;
+    min-width: 0;
+    padding-inline: 14px;
+    gap: 8px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  }
+  .hud > div:last-child {
+    justify-self: end;
+  }
+  .arena,
+  .arena canvas,
+  .time-track {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
   }
 }
 @media (max-height: 720px) and (max-width: 800px) {
