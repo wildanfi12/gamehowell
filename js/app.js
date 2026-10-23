@@ -163,6 +163,11 @@ function crossesOpening(item, previousY, opening) {
 }
 
 const KEY = "howell-catch-win-v1";
+const DEFAULT_SCORES = [
+  { name: "Andrey", score: 700, date: "2026-10-23T06:45:59.320Z" },
+  { name: "rida dan faiz", score: 605, date: "2026-10-23T06:41:53.038Z" },
+  { name: "rida", score: 515, date: "2026-10-23T04:32:00.000Z" },
+];
 let memory = { scores: [], muted: false },
   loaded = false,
   sessionBest = 0;
@@ -192,6 +197,15 @@ function read() {
           .slice(0, 50),
       };
   } catch {}
+  const merged = new Map();
+  [...DEFAULT_SCORES, ...memory.scores].forEach((entry) => {
+    const key = entry.name.toLowerCase();
+    const previous = merged.get(key);
+    if (!previous || entry.score > previous.score) merged.set(key, entry);
+  });
+  memory.scores = [...merged.values()]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 50);
   return memory;
 }
 function write() {
