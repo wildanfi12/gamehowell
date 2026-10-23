@@ -167,6 +167,17 @@ const DEFAULT_SCORES = [
   { name: "Andrey", score: 700, date: "2026-10-23T06:45:59.320Z" },
   { name: "rida dan faiz", score: 605, date: "2026-10-23T06:41:53.038Z" },
   { name: "rida", score: 515, date: "2026-10-23T04:32:00.000Z" },
+  { name: "Bintang Howell", score: 475, date: "2026-10-23T04:47:15.225Z" },
+  { name: "Obi", score: 430, date: "2026-10-23T06:57:28.642Z" },
+  { name: "Pemain Howell", score: 400, date: "2026-10-23T04:25:28.263Z" },
+  { name: "wil", score: 380, date: "2026-10-23T04:20:52.568Z" },
+  { name: "Wildan Pratama", score: 350, date: "2026-10-23T04:08:21.558Z" },
+  { name: "dadang", score: 350, date: "2026-10-23T04:09:29.930Z" },
+  { name: "Wildan", score: 280, date: "2026-10-23T03:36:01.834Z" },
+  { name: "Rizky", score: 240, date: "2026-10-23T03:46:01.834Z" },
+  { name: "Budi", score: 195, date: "2026-10-23T03:56:01.834Z" },
+  { name: "Sarah", score: 160, date: "2026-10-23T04:06:01.834Z" },
+  { name: "Nick", score: 160, date: "2026-10-23T06:03:40.364Z" },
 ];
 let memory = { scores: [], muted: false },
   loaded = false,
@@ -988,7 +999,7 @@ function leaderboard() {
       "Belum ada skor tersimpan. Main, lalu simpan namamu setelah permainan!";
     list.append(p);
   }
-  scores.slice(0, 20).forEach((s, i) => {
+  scores.forEach((s, i) => {
     const row = document.createElement("div");
     row.className = "leader-row";
     const rank = document.createElement("span");
