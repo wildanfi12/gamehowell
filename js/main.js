@@ -11,6 +11,8 @@ import {
   getLastPlayerName,
   saveLastPlayerName,
   validatePlayerName,
+  registerPlayer,
+  fetchCloudScores,
 } from "./storage.js";
 import { reward, difficulty } from "./rules.js";
 
@@ -62,6 +64,11 @@ if (assets.missing.length) {
 const game = new Game($("game"), assets, audio, update, end);
 window.game = game;
 
+// Pre-fetch live cloud scores on initial startup
+fetchCloudScores().then(() => {
+  if (current === "leaderboard") renderLeaderboardRows();
+});
+
 function start() {
   if (current === "home") {
     const inputEl = $("player-name-input");
@@ -77,6 +84,7 @@ function start() {
     }
     currentPlayerName = val.name;
     saveLastPlayerName(val.name);
+    registerPlayer(val.name, bestScore() || 0);
     if (errorEl) errorEl.classList.add("hidden");
   }
 
@@ -166,15 +174,13 @@ function end(state) {
   scoreAnimation = requestAnimationFrame(count);
 
   latestPlayedDate = new Date().toISOString();
-  const savedOk = saveScore(player, state.score);
-  $("save-status").textContent = savedOk
-    ? "★ Skor kamu otomatis tercatat di papan skor lokal!"
-    : "Skor tersimpan untuk sesi permainan ini.";
+  saveScore(player, state.score);
+  $("save-status").textContent = "★ Skor kamu tercatat di papan skor booth!";
 
   saveBest(state.score);
 }
 
-function leaderboard() {
+function renderLeaderboardRows() {
   const scores = read().scores;
   const list = $("leaderboard-list");
   list.replaceChildren();
@@ -190,9 +196,7 @@ function leaderboard() {
       const row = document.createElement("div");
       row.className = "leader-row";
       if (
-        s.name === currentPlayerName &&
-        latestPlayedDate &&
-        Math.abs(new Date(s.date).getTime() - new Date(latestPlayedDate).getTime()) < 5000
+        s.name.toLowerCase() === (currentPlayerName || "").toLowerCase()
       ) {
         row.classList.add("highlight-self");
       }
@@ -230,8 +234,13 @@ function leaderboard() {
       list.append(row);
     });
   }
+}
 
+async function leaderboard() {
+  renderLeaderboardRows();
   show("leaderboard");
+  const cloud = await fetchCloudScores();
+  if (cloud) renderLeaderboardRows();
 }
 
 document.querySelectorAll("[data-action],[data-screen]").forEach((button) =>
@@ -239,15 +248,36 @@ document.querySelectorAll("[data-action],[data-screen]").forEach((button) =>
     audio.unlock();
     audio.play();
     const action = button.dataset.action;
-    if (action === "start") start();
-    else if (action === "leaderboard") leaderboard();
-    else if (action === "exit") {
+    if (action === "start") {
+      start();
+    } else if (action === "leaderboard") {
+      const nameInput = $("player-name-input");
+      if (nameInput && nameInput.value.trim().length >= 2) {
+        currentPlayerName = nameInput.value.trim();
+        saveLastPlayerName(currentPlayerName);
+        registerPlayer(currentPlayerName, bestScore() || 0);
+      }
+      leaderboard();
+    } else if (action === "exit") {
+      if (game.state.score > 0) {
+        saveScore(currentPlayerName || "Pemain Howell", game.state.score);
+      }
       game.stop();
       $("pause-overlay").classList.add("hidden");
       show("home");
-    } else show(button.dataset.screen);
+    } else {
+      show(button.dataset.screen);
+    }
   }),
 );
+
+$("btn-refresh-leaderboard")?.addEventListener("click", async () => {
+  const btn = $("btn-refresh-leaderboard");
+  if (btn) btn.textContent = "⏳ Memuat...";
+  await fetchCloudScores();
+  renderLeaderboardRows();
+  if (btn) btn.textContent = "↻ Segarkan";
+});
 
 $("pause").onclick = pause;
 $("resume").onclick = () => {

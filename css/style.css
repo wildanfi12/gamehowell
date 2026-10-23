@@ -993,3 +993,22 @@ progress {
   min-height: 16px;
   margin: 8px 0;
 }
+
+.leaderboard-badge-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.btn-refresh {
+  font-size: 11px;
+  background: #1e293b;
+  border: 1px solid #ffffff20;
+  color: #38bdf8;
+  padding: 4px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.btn-refresh:active {
+  transform: scale(0.96);
+}
