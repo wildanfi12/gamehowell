@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   color-scheme: dark;
   --bg: #101a29;
   --panel: #192638;
@@ -47,7 +47,6 @@ button:active {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6vw;
   padding: 24px;
 }
 .cabinet {
