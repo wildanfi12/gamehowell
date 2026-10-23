@@ -1,4 +1,5 @@
 import { CONFIG } from "./config.js";
+
 export class Audio {
   constructor(muted) {
     this.muted = muted;
@@ -22,10 +23,12 @@ export class Audio {
       slow: [600, 400, 300],
       life: [550, 750, 1000],
       points: [900, 1100, 1400],
+      totebag: [580, 780, 980, 1280],
       tick: [760],
       end: [500, 400, 300],
       record: [660, 880, 990, 1320],
     }[type] || [600];
+
     notes.forEach((f, i) => {
       const o = this.ctx.createOscillator(),
         g = this.ctx.createGain(),

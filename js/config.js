@@ -16,6 +16,7 @@ export const PRODUCTS = [
   weight: 1,
   image: `assets/products/${id}.png`,
 }));
+
 export const CONFIG = {
   title: "HOWELL CATCH & WIN",
   mode: "demo",
@@ -30,6 +31,15 @@ export const CONFIG = {
     openingY: 0.27,
     openingWidth: 0.76,
   },
+  toteBagExpansion: {
+    enabled: true,
+    maxScale: 1.5,
+    duration: 8,
+    animationDuration: 0.25,
+    spawnChance: 0.05,
+    stackable: false,
+    refreshOnCollect: true,
+  },
   itemSize: 64,
   difficulty: [
     {
@@ -38,7 +48,7 @@ export const CONFIG = {
       interval: 0.72,
       bomb: 0.07,
       damaged: 0.03,
-      bonus: 0.08,
+      bonus: 0.09,
       label: "PEMANASAN",
     },
     {
@@ -47,7 +57,7 @@ export const CONFIG = {
       interval: 0.58,
       bomb: 0.1,
       damaged: 0.06,
-      bonus: 0.12,
+      bonus: 0.13,
       label: "MAKIN SERU",
     },
     {
@@ -56,11 +66,11 @@ export const CONFIG = {
       interval: 0.46,
       bomb: 0.14,
       damaged: 0.08,
-      bonus: 0.12,
+      bonus: 0.13,
       label: "GAS TERUS!",
     },
   ],
-  powerups: { double: 5, magnet: 4, slow: 3 },
+  powerups: { double: 5, magnet: 4, slow: 3, totebag: 8 },
   slowFactor: 0.55,
   magnetRange: 125,
   magnetSpeed: 210,
@@ -81,10 +91,12 @@ export const CONFIG = {
     { min: 221, name: "Hadiah Spesial" },
   ],
 };
+
 export const BONUSES = [
   { id: "double", icon: "×2", label: "Poin ganda", color: "#f6c941" },
   { id: "magnet", icon: "∩", label: "Magnet", color: "#50b9ff" },
   { id: "slow", icon: "◷", label: "Gerak lambat", color: "#ad91ff" },
   { id: "life", icon: "♥", label: "Nyawa ekstra", color: "#f57b8b" },
   { id: "points", icon: "+30", label: "Bonus poin", color: "#63d6a0" },
+  { id: "totebag", icon: "👜", label: "Totebag +50%", color: "#38bdf8" },
 ];

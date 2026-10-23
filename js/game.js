@@ -8,6 +8,7 @@ import {
   crossesOpening,
 } from "./rules.js";
 import { fitImage } from "./assets.js";
+
 export class Game {
   constructor(canvas, assets, audio, onUpdate, onEnd) {
     this.canvas = canvas;
@@ -24,8 +25,11 @@ export class Game {
     this.particles = [];
     this.x = 200;
     this.target = 200;
+    this.bagScale = 1.0;
+    this.currentBagWidth = CONFIG.bag.width;
     this.keys = new Set();
     this.reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
     this.resize = () => {
       const r = canvas.getBoundingClientRect();
       if (!r.width || !r.height) return;
@@ -39,13 +43,16 @@ export class Game {
       this.x = this.clamp(this.x);
       this.render();
     };
+
     this.observer = new ResizeObserver(this.resize);
     this.observer.observe(canvas);
+
     const move = (e) => {
       if (this.mode !== "running") return;
       const r = canvas.getBoundingClientRect();
       this.target = this.clamp(((e.clientX - r.left) / r.width) * this.w);
     };
+
     canvas.addEventListener("pointerdown", (e) => {
       if (
         this.mode !== "running" ||
@@ -59,18 +66,22 @@ export class Game {
       canvas.setPointerCapture(e.pointerId);
       move(e);
     });
+
     canvas.addEventListener("pointermove", (e) => {
       if (this.dragging && e.pointerId === this.activePointer) move(e);
     });
+
     const release = (e) => {
       if (e.pointerId === this.activePointer) {
         this.activePointer = null;
         this.dragging = false;
       }
     };
+
     canvas.addEventListener("pointerup", release);
     canvas.addEventListener("pointercancel", release);
     canvas.addEventListener("lostpointercapture", release);
+
     window.addEventListener("keydown", (e) => {
       if (
         this.mode === "running" &&
@@ -83,13 +94,17 @@ export class Game {
     window.addEventListener("keyup", (e) => this.keys.delete(e.key));
     window.addEventListener("blur", () => this.keys.clear());
   }
+
   clamp(x) {
+    const half = (this.currentBagWidth || CONFIG.bag.width) / 2;
     return Math.max(
-      CONFIG.bag.width / 2 + 10,
-      Math.min(CONFIG.width - CONFIG.bag.width / 2 - 10, x),
+      half + 10,
+      Math.min(CONFIG.width - half - 10, x),
     );
   }
+
   opening() {
+    const width = (this.currentBagWidth || CONFIG.bag.width) * CONFIG.bag.openingWidth;
     return {
       x: this.x,
       y:
@@ -97,9 +112,10 @@ export class Game {
         CONFIG.bag.base -
         CONFIG.bag.height +
         CONFIG.bag.height * CONFIG.bag.openingY,
-      width: CONFIG.bag.width * CONFIG.bag.openingWidth,
+      width,
     };
   }
+
   start() {
     this.stop();
     this.state = createState();
@@ -108,6 +124,8 @@ export class Game {
     this.labels = [];
     this.particles = [];
     this.spawnTime = 0.3;
+    this.bagScale = 1.0;
+    this.currentBagWidth = CONFIG.bag.width;
     this.x = this.target = CONFIG.width / 2;
     this.shake = 0;
     this.flash = 0;
@@ -122,6 +140,7 @@ export class Game {
     this.frame = requestAnimationFrame((t) => this.loop(t));
     this.onUpdate(this);
   }
+
   stop() {
     cancelAnimationFrame(this.frame);
     this.frame = null;
@@ -130,6 +149,7 @@ export class Game {
     this.activePointer = null;
     this.mode = "idle";
   }
+
   pause() {
     if (this.mode !== "running") return;
     this.mode = "paused";
@@ -139,28 +159,43 @@ export class Game {
     this.dragging = false;
     this.activePointer = null;
   }
+
   resume() {
     if (this.mode !== "paused") return;
     this.mode = "running";
     this.last = performance.now();
     this.frame = requestAnimationFrame((t) => this.loop(t));
   }
+
   spawn() {
     if (this.items.length >= CONFIG.maxItems) return;
     const d = difficulty(this.state.time),
       r = Math.random();
     let item = { kind: "product", product: pickProduct() };
-    if (r < d.bomb) item = { kind: "bomb" };
-    else if (r < d.bomb + d.damaged) item = { kind: "damaged" };
-    else if (r < d.bomb + d.damaged + d.bonus)
+
+    if (r < d.bomb) {
+      item = { kind: "bomb" };
+    } else if (r < d.bomb + d.damaged) {
+      item = { kind: "damaged" };
+    } else if (r < d.bomb + d.damaged + d.bonus) {
+      let chosenBonus;
+      if (CONFIG.toteBagExpansion?.enabled && Math.random() < (CONFIG.toteBagExpansion.spawnChance || 0.05)) {
+        chosenBonus = BONUSES.find((b) => b.id === "totebag") || BONUSES[0];
+      } else {
+        const generalBonuses = BONUSES.filter((b) => b.id !== "totebag");
+        chosenBonus = generalBonuses[Math.floor(Math.random() * generalBonuses.length)] || BONUSES[0];
+      }
       item = {
         kind: "bonus",
-        bonus: BONUSES[Math.floor(Math.random() * BONUSES.length)],
+        bonus: chosenBonus,
       };
+    }
+
     let lane = Math.floor(Math.random() * 5);
     if (lane === this.spawnLane)
       lane = (lane + 1 + Math.floor(Math.random() * 4)) % 5;
     this.spawnLane = lane;
+
     Object.assign(item, {
       x: 42 + lane * 79 + (Math.random() - 0.5) * 12,
       y: -50,
@@ -171,6 +206,7 @@ export class Game {
     });
     this.items.push(item);
   }
+
   loop(now) {
     if (this.mode !== "running") return;
     const elapsed = Math.max(0, (now - this.last) / 1000);
@@ -179,7 +215,7 @@ export class Game {
     const remaining = Math.max(0, CONFIG.duration - this.state.time);
     const delta = Math.min(elapsed, remaining),
       endTime = this.state.time + delta;
-    // Consume real active time in small physics steps instead of dropping slow frames.
+
     let pending = delta;
     while (pending > 0 && this.state.lives > 0) {
       const step = Math.min(pending, 1 / 60);
@@ -188,11 +224,13 @@ export class Game {
     }
     if (this.state.lives > 0) this.state.time = endTime;
     this.render();
+
     this.uiTime -= elapsed;
     if (this.uiTime <= 0) {
       this.onUpdate(this);
       this.uiTime = 0.08;
     }
+
     if (this.state.lives === 0 || this.state.time >= CONFIG.duration) {
       this.mode = "ended";
       this.frame = null;
@@ -205,22 +243,42 @@ export class Game {
     }
     this.frame = requestAnimationFrame((t) => this.loop(t));
   }
+
   update(dt) {
     tick(this.state, dt);
+
+    // Totebag expansion smooth lerp
+    const targetScale = this.state.effects.totebag > 0 ? (CONFIG.toteBagExpansion?.maxScale || 1.5) : 1.0;
+    const animDuration = CONFIG.toteBagExpansion?.animationDuration || 0.25;
+    const animSpeed = ((CONFIG.toteBagExpansion?.maxScale || 1.5) - 1.0) / animDuration;
+
+    if (this.bagScale < targetScale) {
+      this.bagScale = Math.min(targetScale, this.bagScale + dt * animSpeed);
+    } else if (this.bagScale > targetScale) {
+      this.bagScale = Math.max(targetScale, this.bagScale - dt * animSpeed);
+    }
+    this.currentBagWidth = CONFIG.bag.width * this.bagScale;
+
     if (this.keys.has("ArrowLeft") || this.keys.has("a"))
       this.target = this.clamp(this.target - dt * 480);
     if (this.keys.has("ArrowRight") || this.keys.has("d"))
       this.target = this.clamp(this.target + dt * 480);
+
+    this.target = this.clamp(this.target);
     this.x += (this.target - this.x) * (1 - Math.exp(-25 * dt));
+    this.x = this.clamp(this.x);
+
     this.spawnTime -= dt;
     if (this.spawnTime <= 0) {
       this.spawn();
       this.spawnTime = difficulty(this.state.time).interval;
     }
+
     const opening = this.opening();
     for (const item of this.items) {
       if (item.collected) continue;
       const previousY = item.y;
+
       if (
         item.kind === "product" &&
         this.state.effects.magnet > 0 &&
@@ -232,19 +290,23 @@ export class Game {
           Math.sign(this.x - item.x) *
           Math.min(Math.abs(this.x - item.x), dt * CONFIG.magnetSpeed);
       }
+
       item.y +=
         item.speed * dt * (this.state.effects.slow > 0 ? CONFIG.slowFactor : 1);
+
       if (crossesOpening(item, previousY, opening)) {
         const result = collect(this.state, item);
         if (!result) continue;
         this.audio.play(result.tone);
+
         this.labels.push({
           text: result.text,
           x: this.x,
           y: opening.y - 25,
           life: 1,
-          color: result.negative ? "#ff7988" : "#f6d343",
+          color: result.negative ? "#ff7988" : (item.bonus?.id === "totebag" ? "#38bdf8" : "#f6d343"),
         });
+
         if (item.kind === "product")
           this.entries.push({
             ...item,
@@ -252,40 +314,51 @@ export class Game {
             startX: item.x,
             startY: item.y,
           });
+
         if (result.negative) {
           this.shake = 0.2;
           this.flash = 0.18;
         }
+
         if (result.combo) {
           this.message = result.combo;
           this.messageTime = 1.4;
           this.audio.play("combo");
         }
-        if (item.kind === "bonus" || item.kind === "bomb")
-          for (let i = 0; i < 14; i++)
+
+        if (item.kind === "bonus" || item.kind === "bomb") {
+          const isTotebag = item.bonus?.id === "totebag";
+          const count = isTotebag ? 20 : 14;
+          for (let i = 0; i < count; i++)
             this.particles.push({
-              x: this.x,
+              x: this.x + (isTotebag ? (Math.random() - 0.5) * opening.width : 0),
               y: opening.y,
-              vx: (Math.random() - 0.5) * 200,
-              vy: -Math.random() * 180,
-              life: 0.55,
-              color: result.negative ? "#ff7281" : item.bonus.color,
+              vx: (Math.random() - 0.5) * (isTotebag ? 260 : 200),
+              vy: -Math.random() * (isTotebag ? 230 : 180),
+              life: isTotebag ? 0.65 : 0.55,
+              color: result.negative ? "#ff7281" : (isTotebag ? (i % 2 === 0 ? "#38bdf8" : "#f6d343") : item.bonus.color),
             });
+        }
+
         if (this.state.lives === 0) break;
       }
     }
+
     this.items = this.items.filter((i) => !i.collected && i.y < this.h + 80);
+
     for (const i of this.entries) {
       i.life -= dt;
       i.x += (this.x - i.x) * Math.min(1, dt * 20);
       i.y += dt * 160;
     }
     this.entries = this.entries.filter((i) => i.life > 0);
+
     for (const p of this.labels) {
       p.life -= dt;
       p.y -= dt * 35;
     }
     this.labels = this.labels.filter((p) => p.life > 0);
+
     for (const p of this.particles) {
       p.life -= dt;
       p.x += p.vx * dt;
@@ -293,15 +366,18 @@ export class Game {
       p.vy += dt * 320;
     }
     this.particles = this.particles.filter((p) => p.life > 0);
+
     this.shake = Math.max(0, this.shake - dt);
     this.flash = Math.max(0, this.flash - dt);
     this.messageTime = Math.max(0, this.messageTime - dt);
+
     const remaining = Math.ceil(CONFIG.duration - this.state.time);
     if (remaining <= 5 && remaining > 0 && remaining !== this.lastCountdown) {
       this.lastCountdown = remaining;
       this.audio.play("tick");
     }
   }
+
   drawItem(item, alpha = 1, scale = 1) {
     const c = this.ctx,
       size = item.size * scale;
@@ -309,6 +385,7 @@ export class Game {
     c.globalAlpha = alpha;
     c.translate(item.x, item.y);
     c.rotate(item.angle || 0);
+
     if (item.kind === "product") {
       const g = c.createRadialGradient(0, 0, 2, 0, 0, size * 0.65);
       g.addColorStop(0, "#9bc4e44d");
@@ -332,7 +409,6 @@ export class Game {
     } else if (item.kind === "bomb") {
       const bomb = this.assets.images.get("bomb");
       if (bomb) {
-        // Animate the entire original bitmap; never redraw or replace its PAJAK lettering.
         const phase =
           this.state.time * CONFIG.bombAnimation.rate + item.x * 0.01;
         const pulse = this.reduced
@@ -353,8 +429,6 @@ export class Game {
         c.restore();
         return;
       }
-      // Safe fallback only when the supplied image cannot load.
-
       c.strokeStyle = "#ffc94d";
       c.lineWidth = 3;
       c.beginPath();
@@ -395,6 +469,44 @@ export class Game {
       c.font = "bold 18px Arial";
       c.textAlign = "center";
       c.fillText("!", 20, -10);
+    } else if (item.bonus?.id === "totebag") {
+      // Special falling HOWELL Totebag expansion collectible
+      const pulse = 1 + (this.reduced ? 0 : Math.sin(this.state.time * 7 + item.x) * 0.08);
+      c.shadowColor = "#38bdf8";
+      c.shadowBlur = this.reduced ? 0 : 16;
+
+      // Aura circle
+      c.fillStyle = "#0c4a6e";
+      c.strokeStyle = "#38bdf8";
+      c.lineWidth = 2.5;
+      c.beginPath();
+      c.arc(0, 0, 27 * pulse, 0, Math.PI * 2);
+      c.fill();
+      c.stroke();
+      c.shadowBlur = 0;
+
+      // Mini Howell bag asset inside
+      const bag = this.assets.images.get("bag");
+      if (bag) {
+        fitImage(c, bag, -17 * pulse, -19 * pulse, 34 * pulse, 38 * pulse);
+      } else {
+        c.fillStyle = "#38bdf8";
+        c.font = "20px Arial";
+        c.textAlign = "center";
+        c.textBaseline = "middle";
+        c.fillText("👜", 0, -2);
+      }
+
+      // +50% badge tag at bottom
+      c.fillStyle = "#0284c7";
+      c.beginPath();
+      c.roundRect(-16, 12, 32, 14, 4);
+      c.fill();
+      c.fillStyle = "#ffffff";
+      c.font = "bold 9px Arial";
+      c.textAlign = "center";
+      c.textBaseline = "middle";
+      c.fillText("+50%", 0, 19);
     } else {
       c.shadowColor = item.bonus.color;
       c.shadowBlur = this.reduced ? 0 : 15;
@@ -414,14 +526,17 @@ export class Game {
     }
     c.restore();
   }
+
   render() {
     if (!this.scale) return;
     const c = this.ctx;
     c.setTransform(this.scale, 0, 0, this.scale, 0, 0);
     c.clearRect(0, 0, this.w, this.h);
     c.save();
+
     if (this.shake && !this.reduced)
       c.translate((Math.random() - 0.5) * 5, (Math.random() - 0.5) * 5);
+
     c.strokeStyle = "#43608016";
     c.lineWidth = 1;
     for (let y = 30; y < this.h; y += 46) {
@@ -436,11 +551,13 @@ export class Game {
       c.lineTo(x, this.h);
       c.stroke();
     }
+
     const opening = this.opening();
     c.fillStyle = "#0005";
     c.beginPath();
-    c.ellipse(this.x, this.h - 18, 63, 9, 0, 0, Math.PI * 2);
+    c.ellipse(this.x, this.h - 18, (this.currentBagWidth || CONFIG.bag.width) * 0.55, 9, 0, 0, Math.PI * 2);
     c.fill();
+
     if (this.state.effects.magnet > 0) {
       c.strokeStyle = "#50b9ff55";
       c.setLineDash([5, 6]);
@@ -449,6 +566,7 @@ export class Game {
       c.stroke();
       c.setLineDash([]);
     }
+
     for (const i of this.items) this.drawItem(i);
     for (const i of this.entries)
       this.drawItem(
@@ -456,30 +574,69 @@ export class Game {
         Math.max(0, i.life / 0.24),
         0.65 + (0.35 * i.life) / 0.24,
       );
+
     const bag = this.assets.images.get("bag");
-    if (bag)
+    const currentW = this.currentBagWidth;
+    const baseH = CONFIG.bag.height;
+    const baseY = this.h - CONFIG.bag.base - baseH;
+
+    // Totebag expansion rendering: expand opening seamlessly without stretching Howell brand logo
+    if (this.bagScale > 1.0) {
+      const extra = (currentW - CONFIG.bag.width) / 2;
+      c.save();
+      c.shadowColor = "#38bdf8";
+      c.shadowBlur = this.reduced ? 0 : 12;
+
+      // Left wing extension
+      c.fillStyle = "#1e293b";
+      c.strokeStyle = "#38bdf8";
+      c.lineWidth = 2;
+      c.beginPath();
+      c.roundRect(this.x - currentW / 2, baseY + 24, extra + 4, baseH - 28, [8, 0, 0, 8]);
+      c.fill();
+      c.stroke();
+
+      // Right wing extension
+      c.beginPath();
+      c.roundRect(this.x + CONFIG.bag.width / 2 - 4, baseY + 24, extra + 4, baseH - 28, [0, 8, 8, 0]);
+      c.fill();
+      c.stroke();
+
+      // Top glowing catch opening bar matching opening.width
+      c.fillStyle = "#0284c7";
+      c.beginPath();
+      c.roundRect(opening.x - opening.width / 2, opening.y, opening.width, 4, 2);
+      c.fill();
+
+      c.restore();
+    }
+
+    // Authentic Howell Totebag rendered in center with exact original proportions
+    if (bag) {
       fitImage(
         c,
         bag,
         this.x - CONFIG.bag.width / 2,
-        this.h - CONFIG.bag.base - CONFIG.bag.height,
+        baseY,
         CONFIG.bag.width,
-        CONFIG.bag.height,
+        baseH,
       );
-    else {
+    } else {
       c.fillStyle = "#34506b";
-      c.fillRect(this.x - 54, opening.y, 108, this.h - opening.y - 18);
+      c.fillRect(this.x - currentW / 2, opening.y, currentW, this.h - opening.y - 18);
       c.fillStyle = "white";
       c.textAlign = "center";
       c.font = "10px Arial";
       c.fillText("TOTEBAG SEMENTARA", this.x, opening.y + 35);
     }
+
     for (const p of this.particles) {
       c.globalAlpha = Math.max(0, p.life / 0.55);
       c.fillStyle = p.color;
       c.fillRect(p.x, p.y, 4, 4);
     }
     c.globalAlpha = 1;
+
     for (const p of this.labels) {
       c.globalAlpha = Math.min(1, p.life * 2);
       c.fillStyle = p.color;
@@ -488,12 +645,14 @@ export class Game {
       c.fillText(p.text, p.x, p.y);
     }
     c.globalAlpha = 1;
+
     if (CONFIG.debug) {
       c.strokeStyle = "#65ff8c";
       c.strokeRect(opening.x - opening.width / 2, opening.y, opening.width, 3);
       for (const i of this.items)
         c.strokeRect(i.x - i.size / 2, i.y - i.size / 2, i.size, i.size);
     }
+
     if (this.flash) {
       c.fillStyle = `rgba(255,50,80,${this.flash * 0.7})`;
       c.fillRect(0, 0, this.w, this.h);

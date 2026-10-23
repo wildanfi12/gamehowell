@@ -1,4 +1,5 @@
 import { CONFIG, PRODUCTS } from "./config.js";
+
 export function createState() {
   return {
     time: 0,
@@ -7,24 +8,29 @@ export function createState() {
     combo: 0,
     caught: 0,
     bestCombo: 0,
-    effects: { double: 0, magnet: 0, slow: 0 },
+    effects: { double: 0, magnet: 0, slow: 0, totebag: 0 },
   };
 }
+
 export function difficulty(time) {
   return CONFIG.difficulty.filter((d) => time >= d.at).at(-1);
 }
+
 export function tick(s, dt) {
   s.time = Math.min(CONFIG.duration, s.time + dt);
   for (const key in s.effects)
     s.effects[key] = Math.max(0, s.effects[key] - dt);
 }
+
 export function reward(score) {
   return CONFIG.rewards.filter((r) => score >= r.min).at(-1);
 }
+
 export function pickProduct(random = Math.random) {
   let value = random() * PRODUCTS.reduce((n, p) => n + p.weight, 0);
   return PRODUCTS.find((p) => (value -= p.weight) < 0) || PRODUCTS.at(-1);
 }
+
 export function collect(s, item) {
   if (item.collected) return null;
   item.collected = true;
@@ -54,15 +60,21 @@ export function collect(s, item) {
   if (id === "life") s.lives = Math.min(CONFIG.lives, s.lives + 1);
   else if (id === "points")
     s.score += CONFIG.bonusPoints * (s.effects.double > 0 ? 2 : 1);
+  else if (id === "totebag")
+    s.effects.totebag = CONFIG.toteBagExpansion.duration;
   else s.effects[id] = CONFIG.powerups[id];
+
   return {
     text:
       id === "points"
         ? `+${CONFIG.bonusPoints * (s.effects.double > 0 ? 2 : 1)}`
-        : item.bonus.label.toUpperCase(),
+        : id === "totebag"
+          ? "TOTEBAG +50%!"
+          : item.bonus.label.toUpperCase(),
     tone: id,
   };
 }
+
 export function crossesOpening(item, previousY, opening) {
   return (
     previousY + item.size * 0.35 <= opening.y &&

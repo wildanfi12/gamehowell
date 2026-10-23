@@ -887,3 +887,109 @@ progress {
     font-size: 50px;
   }
 }
+
+/* Player identification card on home screen */
+.player-entry-card {
+  margin: 12px 24px 0 24px;
+  background: #152233;
+  border: 1px solid #ffffff1a;
+  border-radius: 14px;
+  padding: 12px 14px;
+  text-align: left;
+  box-shadow: 0 4px 16px #00000030;
+}
+.player-name-label {
+  display: block;
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+  color: var(--yellow);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+.player-name-field {
+  display: flex;
+  align-items: center;
+}
+.player-name-input {
+  width: 100%;
+  background: #0b1522;
+  border: 1.5px solid #ffffff26;
+  border-radius: 9px;
+  padding: 11px 13px;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.player-name-input:focus {
+  border-color: var(--yellow);
+  box-shadow: 0 0 0 3px #f4d0432a;
+  outline: none;
+}
+.player-name-input::placeholder {
+  color: #64748b;
+}
+.input-error {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #ff6b7a;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  animation: shakeError 0.3s ease;
+}
+@keyframes shakeError {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+/* Leaderboard enhancements */
+.leaderboard-subtitle {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 4px 0 8px 0;
+}
+.leaderboard-badge {
+  display: inline-block;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  color: #38bdf8;
+  background: #0284c720;
+  border: 1px solid #0284c740;
+  padding: 4px 10px;
+  border-radius: 12px;
+  margin-bottom: 14px;
+}
+.leader-row.highlight-self {
+  background: #2563eb25;
+  border-left: 3px solid #38bdf8;
+  padding-left: 8px;
+  border-radius: 6px;
+}
+.rank-badge {
+  font-weight: bold;
+}
+.rank-badge.gold {
+  color: #ffd700;
+}
+.rank-badge.silver {
+  color: #e2e8f0;
+}
+.rank-badge.bronze {
+  color: #cd7f32;
+}
+#result-greeting {
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--yellow);
+  margin-top: -6px;
+  margin-bottom: 14px;
+}
+.save-status {
+  font-size: 11px;
+  color: #6ee7b7;
+  min-height: 16px;
+  margin: 8px 0;
+}

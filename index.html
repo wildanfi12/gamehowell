@@ -13,7 +13,7 @@
     />
     <title>HOWELL — Catch & Win</title>
     <link rel="icon" type="image/png" href="assets/branding/howell-emblem.png" />
-    <link rel="stylesheet" href="css/style.css?v=1.0.2" />
+    <link rel="stylesheet" href="css/style.css?v=1.0.3" />
   </head>
   <body>
     <main class="arcade">
@@ -54,7 +54,7 @@
             <h1>
               CATCH<br /><em>& WIN<span class="spark">✦</span></em>
             </h1>
-            <p>Tangkap produknya. Taklukkan skornya.</p>
+            <p>Siap tangkap hadiah HOWELL?</p>
           </div>
           <div class="hero-art" aria-label="Produk asli dan totebag Howell">
             <div class="orbit one"></div>
@@ -80,9 +80,28 @@
               alt="Totebag asli Howell"
             /><span class="drag-hint">← &nbsp; GESER & TANGKAP &nbsp; →</span>
           </div>
+
+          <!-- Player Identification Entry -->
+          <div class="player-entry-card">
+            <label for="player-name-input" class="player-name-label">Masukkan Nama Kamu</label>
+            <div class="player-name-field">
+              <input
+                type="text"
+                id="player-name-input"
+                class="player-name-input"
+                placeholder="Contoh: Andrey"
+                maxlength="20"
+                autocomplete="nickname"
+              />
+            </div>
+            <div id="player-name-error" class="input-error hidden" role="alert">
+              Masukkan nama minimal 2 karakter.
+            </div>
+          </div>
+
           <div class="home-actions">
             <button class="primary" data-action="start">
-              MAIN SEKARANG <span>↗</span>
+              MULAI MAIN <span>▶</span>
             </button>
             <div class="split">
               <button class="secondary" data-screen="tutorial">
@@ -137,8 +156,7 @@
             </li>
           </ol>
           <div class="bonus-guide">
-            ×2 Poin ganda · ∩ Magnet · ◷ Lambat<br />♥ Nyawa ekstra · +30 Bonus
-            poin
+            ×2 Poin ganda · ∩ Magnet · ◷ Lambat<br />👜 Totebag +50% · ♥ Nyawa ekstra · +30 Bonus
           </div>
           <button class="primary" data-action="start">
             MULAI <span>↗</span></button
@@ -193,7 +211,7 @@
           <div class="result-symbol">✦</div>
           <span class="eyebrow" id="result-kicker">WAKTU HABIS!</span>
           <h2>Permainan selesai!</h2>
-          <p>Setiap tangkapan bikin koneksi.</p>
+          <p id="result-greeting">Hebat, Pemain!</p>
           <div class="score-card">
             <small>SKOR AKHIR</small><strong id="final-score">0</strong
             ><span id="record-label"></span>
@@ -209,30 +227,20 @@
               <small>KATEGORI HADIAH DEMO</small><b id="reward-name"></b>
             </div>
           </div>
-          <form id="score-form">
-            <label for="nickname">Nama di papan skor lokal</label>
-            <div class="name-entry">
-              <input
-                id="nickname"
-                maxlength="20"
-                placeholder="Nama panggilan"
-                autocomplete="off"
-              /><button type="submit" class="secondary">Simpan</button>
-            </div>
-            <small id="save-status" role="status"></small>
-          </form>
+          <p id="save-status" class="save-status" role="status"></p>
           <button class="primary" data-action="start">
             MAIN LAGI <span>↻</span>
           </button>
           <div class="split">
-            <button class="secondary" data-screen="prizes">Lihat hadiah</button
+            <button class="secondary" data-action="leaderboard">Papan skor</button
             ><button class="secondary" data-screen="home">Kembali</button>
           </div>
         </section>
         <section id="leaderboard" class="screen padded hidden">
-          <span class="eyebrow">CATATAN PARA PENANGKAP</span>
-          <h2>Papan skor</h2>
-          <p>Lokal di browser ini, bukan peringkat global.</p>
+          <span class="eyebrow">PAPAN SKOR BOOTH</span>
+          <h2>HOWELL LEADERBOARD</h2>
+          <p class="leaderboard-subtitle">Siapa yang punya skor tertinggi?</p>
+          <div class="leaderboard-badge">Lokal Perangkat · Demo INDOCOMTECH 2026</div>
           <div id="leaderboard-list"></div>
           <button class="primary" data-action="start">
             KEJAR REKORMU <span>↗</span></button
@@ -264,6 +272,6 @@
         <p>Connected<br />to the future.</p>
       </aside>
     </main>
-    <script src="js/app.js?v=1.0.2"></script>
+    <script src="js/app.js?v=1.0.3"></script>
   </body>
 </html>

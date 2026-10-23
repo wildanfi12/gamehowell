@@ -2,14 +2,28 @@ import { CONFIG, BONUSES } from "./config.js";
 import { loadAssets } from "./assets.js";
 import { Audio } from "./audio.js";
 import { Game } from "./game.js";
-import { read, bestScore, saveScore, setMuted, saveBest } from "./storage.js";
+import {
+  read,
+  bestScore,
+  saveScore,
+  setMuted,
+  saveBest,
+  getLastPlayerName,
+  saveLastPlayerName,
+  validatePlayerName,
+} from "./storage.js";
 import { reward, difficulty } from "./rules.js";
+
 const $ = (id) => document.getElementById(id);
 let current = "loading",
   result = null,
   saved = false,
-  scoreAnimation = 0;
+  scoreAnimation = 0,
+  currentPlayerName = "",
+  latestPlayedDate = null;
+
 const audio = new Audio(read().muted);
+
 function show(id) {
   cancelAnimationFrame(scoreAnimation);
   document
@@ -19,6 +33,7 @@ function show(id) {
   if (id === "home") $("home-best").textContent = bestScore();
   $("cabinet").scrollIntoView({ block: "start" });
 }
+
 function soundUI() {
   $("sound").textContent = audio.muted ? "♫̸" : "♪";
   $("sound").setAttribute(
@@ -28,6 +43,7 @@ function soundUI() {
   $("sound").setAttribute("aria-pressed", String(!audio.muted));
 }
 soundUI();
+
 $("sound").onclick = () => {
   audio.unlock();
   audio.muted = !audio.muted;
@@ -35,23 +51,42 @@ $("sound").onclick = () => {
   soundUI();
   audio.play();
 };
+
 const assets = await loadAssets((value) => ($("load-progress").value = value));
 if (assets.missing.length) {
   $("asset-warning").textContent =
     `${assets.missing.length} aset belum tersedia; penanda sementara digunakan.`;
   $("asset-warning").classList.remove("hidden");
 }
+
 const game = new Game($("game"), assets, audio, update, end);
+window.game = game;
+
 function start() {
+  if (current === "home") {
+    const inputEl = $("player-name-input");
+    const errorEl = $("player-name-error");
+    const val = validatePlayerName(inputEl ? inputEl.value : "");
+    if (!val.valid) {
+      if (errorEl) {
+        errorEl.textContent = val.error;
+        errorEl.classList.remove("hidden");
+      }
+      if (inputEl) inputEl.focus();
+      return;
+    }
+    currentPlayerName = val.name;
+    saveLastPlayerName(val.name);
+    if (errorEl) errorEl.classList.add("hidden");
+  }
+
   result = null;
   saved = false;
-  $("score-form").reset();
-  $("save-status").textContent = "";
-  $("score-form").querySelector("button").disabled = false;
   $("pause-overlay").classList.add("hidden");
   show("play");
   game.start();
 }
+
 function pause() {
   if (game.mode === "running") {
     game.pause();
@@ -59,6 +94,7 @@ function pause() {
     $("resume").focus();
   }
 }
+
 function update(g) {
   const s = g.state,
     left = Math.ceil(CONFIG.duration - s.time);
@@ -71,12 +107,14 @@ function update(g) {
   $("lives").setAttribute("aria-label", `${s.lives} nyawa`);
   $("stage").textContent = difficulty(s.time).label;
   $("announcement").textContent = g.messageTime > 0 ? g.message : "";
+
   const effects = Object.entries(s.effects)
     .filter(([, t]) => t > 0)
-    .map(
-      ([id, t]) =>
-        `${BONUSES.find((b) => b.id === id).label} ${Math.ceil(t)} dtk`,
-    );
+    .map(([id, t]) => {
+      const b = BONUSES.find((b) => b.id === id);
+      return `${b ? b.label : id} ${Math.ceil(t)} dtk`;
+    });
+
   $("effects").replaceChildren(
     ...effects.map((text) => {
       const span = document.createElement("span");
@@ -84,24 +122,31 @@ function update(g) {
       return span;
     }),
   );
+
   if (CONFIG.debug) {
     $("debug").hidden = false;
     $("debug").textContent =
-      `FPS ${Math.round(g.fps || 0)} | Item ${g.items.length}\nStatus ${g.mode} | Interval ${difficulty(s.time).interval}s\nKecepatan ${difficulty(s.time).speed} | waktu ${s.time.toFixed(1)}`;
+      `FPS ${Math.round(g.fps || 0)} | Item ${g.items.length}\nStatus ${g.mode} | BagScale ${g.bagScale.toFixed(2)}\nKecepatan ${difficulty(s.time).speed} | Waktu ${s.time.toFixed(1)}`;
   }
 }
+
 function end(state) {
   result = { ...state };
-  saved = false;
+  saved = true;
+  const player = currentPlayerName || getLastPlayerName() || "Pemain Howell";
   const prior = bestScore(),
     record = state.score > prior;
+
   audio.play(record ? "record" : "end");
   show("results");
+
   $("result-kicker").textContent = record
     ? "REKOR BARU!"
     : state.lives === 0
       ? "NYAWA HABIS!"
       : "WAKTU HABIS!";
+
+  $("result-greeting").textContent = `Hebat, ${player}!`;
   $("record-label").textContent = record
     ? "✦ Rekor terbaikmu sejauh ini"
     : "Terus latihan, terus melesat.";
@@ -109,6 +154,7 @@ function end(state) {
   $("combo").textContent = state.bestCombo;
   $("best").textContent = Math.max(prior, state.score);
   $("reward-name").textContent = reward(state.score).name;
+
   const begin = performance.now();
   function count(now) {
     const t = matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -118,52 +164,76 @@ function end(state) {
     if (t < 1) scoreAnimation = requestAnimationFrame(count);
   }
   scoreAnimation = requestAnimationFrame(count);
-  // Save the best immediately, even if the player skips entering a nickname.
+
+  latestPlayedDate = new Date().toISOString();
+  const savedOk = saveScore(player, state.score);
+  $("save-status").textContent = savedOk
+    ? "★ Skor kamu otomatis tercatat di papan skor lokal!"
+    : "Skor tersimpan untuk sesi permainan ini.";
+
   saveBest(state.score);
 }
+
 function leaderboard() {
   const scores = read().scores;
   const list = $("leaderboard-list");
   list.replaceChildren();
+
   if (!scores.length) {
     const p = document.createElement("p");
     p.className = "notice";
     p.textContent =
-      "Belum ada skor tersimpan. Main, lalu simpan namamu setelah permainan!";
+      "Belum ada skor tersimpan. Masukkan namamu dan jadilah yang pertama di papan peringkat!";
     list.append(p);
-  }
-  scores.slice(0, 20).forEach((s, i) => {
-    const row = document.createElement("div");
-    row.className = "leader-row";
-    const rank = document.createElement("span");
-    rank.textContent = String(i + 1).padStart(2, "0");
-    const details = document.createElement("div"),
-      name = document.createElement("b"),
-      date = document.createElement("small"),
-      score = document.createElement("strong");
-    name.textContent = s.name;
-    date.textContent = new Date(s.date).toLocaleDateString("id-ID", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
+  } else {
+    scores.slice(0, 10).forEach((s, i) => {
+      const row = document.createElement("div");
+      row.className = "leader-row";
+      if (
+        s.name === currentPlayerName &&
+        latestPlayedDate &&
+        Math.abs(new Date(s.date).getTime() - new Date(latestPlayedDate).getTime()) < 5000
+      ) {
+        row.classList.add("highlight-self");
+      }
+
+      const rank = document.createElement("span");
+      rank.className = "rank-badge";
+      if (i === 0) {
+        rank.textContent = "🥇 1";
+        rank.classList.add("gold");
+      } else if (i === 1) {
+        rank.textContent = "🥈 2";
+        rank.classList.add("silver");
+      } else if (i === 2) {
+        rank.textContent = "🥉 3";
+        rank.classList.add("bronze");
+      } else {
+        rank.textContent = String(i + 1).padStart(2, "0");
+      }
+
+      const details = document.createElement("div"),
+        name = document.createElement("b"),
+        date = document.createElement("small"),
+        score = document.createElement("strong");
+
+      name.textContent = s.name;
+      date.textContent = new Date(s.date).toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+      score.textContent = s.score;
+
+      details.append(name, date);
+      row.append(rank, details, score);
+      list.append(row);
     });
-    score.textContent = s.score;
-    details.append(name, date);
-    row.append(rank, details, score);
-    list.append(row);
-  });
+  }
+
   show("leaderboard");
 }
-$("score-form").onsubmit = (e) => {
-  e.preventDefault();
-  if (!result || saved) return;
-  saved = true;
-  const persisted = saveScore($("nickname").value, result.score);
-  $("save-status").textContent = persisted
-    ? "Skor tersimpan di browser ini."
-    : "Penyimpanan browser tidak tersedia; skor hanya tersimpan selama sesi.";
-  $("score-form").querySelector("button").disabled = true;
-};
+
 document.querySelectorAll("[data-action],[data-screen]").forEach((button) =>
   button.addEventListener("click", () => {
     audio.unlock();
@@ -178,27 +248,50 @@ document.querySelectorAll("[data-action],[data-screen]").forEach((button) =>
     } else show(button.dataset.screen);
   }),
 );
+
 $("pause").onclick = pause;
 $("resume").onclick = () => {
   $("pause-overlay").classList.add("hidden");
   audio.unlock();
   game.resume();
 };
+
 $("brand").onclick = (e) => {
   e.preventDefault();
   if (current === "play") pause();
   else show("home");
 };
+
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) pause();
 });
 window.addEventListener("blur", pause);
+
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && current === "play") {
     if (game.mode === "running") pause();
     else if (game.mode === "paused") $("resume").click();
   }
 });
+
+const nameInput = $("player-name-input");
+if (nameInput) {
+  const savedName = getLastPlayerName();
+  if (savedName) {
+    nameInput.value = savedName;
+    currentPlayerName = savedName;
+  }
+  nameInput.addEventListener("input", () => {
+    $("player-name-error")?.classList.add("hidden");
+  });
+  nameInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      start();
+    }
+  });
+}
+
 CONFIG.rewards.forEach((r, i) => {
   const row = document.createElement("div");
   row.className = "prize-row";
@@ -212,4 +305,5 @@ CONFIG.rewards.forEach((r, i) => {
   row.append(range, name);
   $("prize-list").append(row);
 });
+
 show("home");
