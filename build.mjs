@@ -19,7 +19,7 @@ await writeFile(path.join(root,'index.html'),html);
 
 const css=await readFile(path.join(root,'css/style.css'),'utf8');
 const map={};
-for(const image of [...PRODUCTS.map(p=>p.image),CONFIG.bagImage,CONFIG.bombImage])map[image]='data:image/png;base64,'+(await readFile(path.join(root,image))).toString('base64');
+for(const image of [...PRODUCTS.map(p=>p.image),CONFIG.bagImage,CONFIG.bombImage,'assets/branding/howell-logo-white.png'])map[image]='data:image/png;base64,'+(await readFile(path.join(root,image))).toString('base64');
 const init=`const embeddedAssets=${JSON.stringify(map)};for(const product of PRODUCTS)product.image=embeddedAssets[product.image];CONFIG.bagImage=embeddedAssets[CONFIG.bagImage];CONFIG.bombImage=embeddedAssets[CONFIG.bombImage];`;
 const standaloneBundle=bundle.replace(/const assets\s*=\s*await loadAssets/,()=>init+'\nconst assets = await loadAssets');
 let standalone=html.replace(/<link rel="stylesheet" href="css\/style\.css[^"]*"\s*\/?>/,()=>`<style>${css}</style>`).replace(/<script src="js\/app\.js[^"]*"><\/script>/,()=>`<script>${standaloneBundle.replace(/<\/script/gi,'<\\/script')}</script>`);

@@ -80,17 +80,20 @@ button:active {
   z-index: 2;
 }
 .topbar a {
-  font-family: Georgia, serif;
-  font-size: 32px;
-  font-weight: bold;
-  letter-spacing: -1.5px;
-  color: #f7f8fc;
+  display: flex;
+  align-items: center;
   text-decoration: none;
+  line-height: 1;
+}
+.brand-logo {
+  height: 28px;
+  width: auto;
+  max-width: 130px;
+  object-fit: contain;
+  display: block;
 }
 .brand-dot {
-  font: 10px Arial;
-  vertical-align: top;
-  margin-left: 3px;
+  display: none;
 }
 .event {
   font-size: 8px;
