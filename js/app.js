@@ -138,18 +138,15 @@ const SKINS = {
     sprite: {
       width: 140,
       height: 140,
-      base: 14,
+      base: 56, // Calibrated so mouth catch line matches totebag opening height (Y ≈ 587)
     },
     mouthHitbox: {
-      // Calibrated from original 1254x1254 PNG:
-      // Mouth pixel bbox: X 627-995 (center 0.647), Y 652-876 (center 0.609)
       centerX: 0.647,
       centerY: 0.609,
-      width: 0.25,
-      height: 0.17,
+      width: 0.28,
+      height: 0.18,
       openingY: 0.54,
-      // Effective catch width gives equivalent base catch effectiveness to totebag (~92px)
-      openingWidth: 0.66,
+      openingWidth: 0.92, // Generous, responsive catch mouth width (~100px)
     },
     description: "Karakter seru penangkap produk dengan mulut terbuka!",
   },
@@ -806,6 +803,7 @@ class Game {
     this.currentBagWidth = CONFIG.bag.width;
     this.totebagBonusSpawned = false;
     this.chompTimer = 0;
+    this.prevX = CONFIG.width / 2;
     this.keys = new Set();
     this.reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -920,14 +918,6 @@ class Game {
   }
 
   clamp(x) {
-    const skin = this.activeSkin;
-    if (skin.id === "howell-chomper") {
-      const spriteW = skin.sprite.width;
-      const mouthOffsetX = (skin.mouthHitbox.centerX - 0.5) * spriteW;
-      const minX = 10 + spriteW / 2 + mouthOffsetX;
-      const maxX = CONFIG.width - 10 - spriteW / 2 + mouthOffsetX;
-      return Math.max(minX, Math.min(maxX, x));
-    }
     const half = (this.currentBagWidth || CONFIG.bag.width) / 2;
     return Math.max(
       half + 10,
@@ -1145,7 +1135,7 @@ class Game {
       this.target = this.clamp(this.target + dt * 480);
 
     this.target = this.clamp(this.target);
-    const prevBagX = this.x;
+    const prevBagX = this.prevX != null ? this.prevX : this.x;
     // When dragging, bag already follows finger directly in the move handler.
     // When not dragging (keyboard or post-release), use fast smooth follow.
     if (this.dragging) {
@@ -1189,18 +1179,18 @@ class Game {
       // 1. Classical swept vertical crossing
       // 2. Horizontal bag sweep during fast drags
       // 3. Item inside upper catch mouth of bag
-      const horizTol = opening.width / 2 + item.size * 0.15;
+      const horizTol = opening.width / 2 + item.size * 0.18;
       const horizDirect = Math.abs(item.x - this.x) <= horizTol;
       const horizSwept = item.x >= minBagX - horizTol && item.x <= maxBagX + horizTol;
 
       const itemBottom = item.y + item.size * 0.35;
       const prevBottom = previousY + item.size * 0.35;
-      const vertSwept = prevBottom <= opening.y + 12 && itemBottom >= opening.y;
-      const vertInsideMouth = itemBottom >= opening.y && item.y <= opening.y + currentH * 0.45;
+      const vertSwept = prevBottom <= opening.y + 16 && itemBottom >= opening.y - 12;
+      const vertInsideMouth = itemBottom >= opening.y - 12 && item.y <= opening.y + currentH * 0.48;
 
       const isCaught =
         (horizDirect && (vertSwept || vertInsideMouth)) ||
-        (horizSwept && vertSwept) ||
+        (horizSwept && (vertSwept || vertInsideMouth)) ||
         crossesOpening(item, previousY, opening);
 
       if (isCaught) {
@@ -1284,6 +1274,7 @@ class Game {
       }
     }
 
+    this.prevX = this.x;
     this.items = this.items.filter((i) => !i.collected && i.y < this.h + 80);
 
     for (const i of this.entries) {

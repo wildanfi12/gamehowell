@@ -33,18 +33,15 @@ export const SKINS = {
     sprite: {
       width: 140,
       height: 140,
-      base: 14,
+      base: 56, // Calibrated so mouth catch line matches totebag opening height (Y ≈ 587)
     },
     mouthHitbox: {
-      // Calibrated from original 1254x1254 PNG:
-      // Mouth pixel bbox: X 627-995 (center 0.647), Y 652-876 (center 0.609)
       centerX: 0.647,
       centerY: 0.609,
-      width: 0.25,
-      height: 0.17,
+      width: 0.28,
+      height: 0.18,
       openingY: 0.54,
-      // Effective catch width gives equivalent base catch effectiveness to totebag (~92px)
-      openingWidth: 0.66,
+      openingWidth: 0.92, // Generous, responsive catch mouth width (~100px)
     },
     description: "Karakter seru penangkap produk dengan mulut terbuka!",
   },

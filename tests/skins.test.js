@@ -119,7 +119,7 @@ test("Different nicknames maintain isolated skin unlocks and equipped selections
   assert.equal(getSelectedSkin("PlayerB"), "howell-original");
 });
 
-test("Chomper movement anchors mouth to player X and keeps sprite within bounds", () => {
+test("Chomper movement anchors mouth to player X and allows full reach to screen edges", () => {
   const g = Object.create(Game.prototype);
   Object.assign(g, {
     x: 200,
@@ -134,17 +134,15 @@ test("Chomper movement anchors mouth to player X and keeps sprite within bounds"
   // Mouth center X must coincide with g.x
   assert.equal(opening.mouthX, g.x);
 
-  // Clamping prevents sprite overflow off-screen
+  // Clamping ensures mouth can reach left edge so items on the left are caught reliably
   const minX = g.clamp(-100);
   const maxX = g.clamp(1000);
-  const spriteW = g.skin.sprite.width;
-  const mouthOffset = (g.skin.mouthHitbox.centerX - 0.5) * spriteW;
 
-  const leftEdgeAtMin = minX - mouthOffset - spriteW / 2;
-  const rightEdgeAtMax = maxX - mouthOffset + spriteW / 2;
-
-  assert.ok(leftEdgeAtMin >= 9.9, `Left edge ${leftEdgeAtMin} must stay >= 10`);
-  assert.ok(rightEdgeAtMax <= CONFIG.width - 9.9, `Right edge ${rightEdgeAtMax} must stay <= ${CONFIG.width - 10}`);
+  // Mouth left reach must reach <= 20px from screen edge
+  const leftReach = minX - opening.width / 2;
+  assert.ok(leftReach <= 20, `Chomper mouth left reach (${leftReach}px) must be able to reach <= 20px to catch left items`);
+  assert.equal(minX, 64);
+  assert.equal(maxX, 336);
 });
 
 test("Chomper catch width expands by +50% under totebag power-up without distorting base geometry", () => {
