@@ -1,9 +1,12 @@
-const KEY = "howell-catch-win-v1";
-const SYNC_URL = "https://ntfy.sh/howell_indocomtech_leaderboard_2026";
+const KEY = "howell-catch-win-v2";
+const SYNC_URL = "https://ntfy.sh/howell_indocomtech_leaderboard_v2";
 
 const DEFAULT_SCORES = [
+  { name: "Andrey", score: 700, date: "2026-10-23T06:45:59.320Z" },
+  { name: "rida dan faiz", score: 605, date: "2026-10-23T06:41:53.038Z" },
   { name: "rida", score: 515, date: "2026-10-23T04:32:00.000Z" },
-  { name: "Andrey", score: 455, date: "2026-10-23T04:29:46.030Z" },
+  { name: "Bintang Howell", score: 475, date: "2026-10-23T04:47:15.225Z" },
+  { name: "Obi", score: 430, date: "2026-10-23T06:57:28.642Z" },
   { name: "Pemain Howell", score: 400, date: "2026-10-23T04:25:28.263Z" },
   { name: "wil", score: 380, date: "2026-10-23T04:20:52.568Z" },
   { name: "Wildan Pratama", score: 350, date: "2026-10-23T04:08:21.558Z" },
@@ -12,6 +15,7 @@ const DEFAULT_SCORES = [
   { name: "Rizky", score: 240, date: "2026-10-23T03:46:01.834Z" },
   { name: "Budi", score: 195, date: "2026-10-23T03:56:01.834Z" },
   { name: "Sarah", score: 160, date: "2026-10-23T04:06:01.834Z" },
+  { name: "Nick", score: 160, date: "2026-10-23T06:03:40.364Z" },
 ];
 
 let memory = { scores: [], muted: false },
@@ -25,7 +29,18 @@ export function read(force = false) {
   if (loaded && !force) return memory;
   loaded = true;
   try {
-    const raw = localStorage.getItem(KEY);
+    let raw = localStorage.getItem(KEY);
+    if (!raw) {
+      const v1 = localStorage.getItem("howell-catch-win-v1");
+      if (v1) {
+        try {
+          const parsedV1 = JSON.parse(v1);
+          if (parsedV1 && typeof parsedV1.muted === "boolean") {
+            memory.muted = parsedV1.muted;
+          }
+        } catch {}
+      }
+    }
     const data = raw ? JSON.parse(raw) : null;
     if (data && Array.isArray(data.scores)) {
       memory = {
@@ -51,7 +66,7 @@ export function read(force = false) {
     }
   } catch {}
 
-  // If memory has no scores yet, seed from DEFAULT_SCORES
+  // Seed default scores if database empty
   if (memory.scores.length === 0) {
     memory.scores = [...DEFAULT_SCORES];
     write();
@@ -98,6 +113,16 @@ export function saveLastPlayerName(name) {
   } catch {}
 }
 
+export function getPlayerBest(name) {
+  read();
+  const cleanName = (name || "").trim().toLowerCase();
+  if (!cleanName) return 0;
+  const existing = memory.scores.find(
+    (s) => s.name.toLowerCase() === cleanName,
+  );
+  return existing ? existing.score : 0;
+}
+
 export function registerPlayer(name, score = 0) {
   read();
   const cleanName = (name || "").trim().slice(0, 20);
@@ -107,15 +132,17 @@ export function registerPlayer(name, score = 0) {
   );
   const now = new Date().toISOString();
   if (!existing) {
+    // Only register brand new player with their own score (0 if new)
+    const initialScore = Math.max(0, Number(score) || 0);
     memory.scores.push({
       name: cleanName,
-      score: Math.max(0, score),
+      score: initialScore,
       date: now,
     });
     memory.scores.sort((a, b) => b.score - a.score);
     memory.scores = memory.scores.slice(0, 50);
     write();
-    postScoreToCloud(cleanName, Math.max(0, score), now).catch(() => {});
+    postScoreToCloud(cleanName, initialScore, now).catch(() => {});
   }
 }
 
@@ -128,7 +155,8 @@ export function saveScore(name, score) {
     (s) => s.name.toLowerCase() === cleanName.toLowerCase(),
   );
   if (existingIndex >= 0) {
-    if (score >= memory.scores[existingIndex].score) {
+    // Update score if it exceeds previous score or if previous score was 0
+    if (score >= memory.scores[existingIndex].score || memory.scores[existingIndex].score === 0) {
       memory.scores[existingIndex].score = score;
       memory.scores[existingIndex].date = now;
     }

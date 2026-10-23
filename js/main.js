@@ -12,6 +12,7 @@ import {
   saveLastPlayerName,
   validatePlayerName,
   registerPlayer,
+  getPlayerBest,
   syncScores,
   fetchCloudScores,
 } from "./storage.js";
@@ -33,7 +34,10 @@ function show(id) {
     .querySelectorAll(".screen")
     .forEach((s) => s.classList.toggle("hidden", s.id !== id));
   current = id;
-  if (id === "home") $("home-best").textContent = bestScore();
+  if (id === "home") {
+    const name = currentPlayerName || getLastPlayerName();
+    $("home-best").textContent = name ? getPlayerBest(name) : 0;
+  }
   $("cabinet").scrollIntoView({ block: "start" });
 }
 
@@ -85,7 +89,7 @@ function start() {
     }
     currentPlayerName = val.name;
     saveLastPlayerName(val.name);
-    registerPlayer(val.name, bestScore() || 0);
+    registerPlayer(val.name, getPlayerBest(val.name));
     if (errorEl) errorEl.classList.add("hidden");
   }
 
@@ -144,7 +148,7 @@ function end(state) {
   result = { ...state };
   saved = true;
   const player = currentPlayerName || getLastPlayerName() || "Pemain Howell";
-  const prior = bestScore(),
+  const prior = getPlayerBest(player),
     record = state.score > prior;
 
   audio.play(record ? "record" : "end");
@@ -279,7 +283,7 @@ document.querySelectorAll("[data-action],[data-screen]").forEach((button) =>
       if (nameInput && nameInput.value.trim().length >= 2) {
         currentPlayerName = nameInput.value.trim();
         saveLastPlayerName(currentPlayerName);
-        registerPlayer(currentPlayerName, bestScore() || 0);
+        registerPlayer(currentPlayerName, getPlayerBest(currentPlayerName));
       }
       leaderboard();
     } else if (action === "exit") {
@@ -337,9 +341,13 @@ if (nameInput) {
   if (savedName) {
     nameInput.value = savedName;
     currentPlayerName = savedName;
+    $("home-best").textContent = getPlayerBest(savedName);
   }
   nameInput.addEventListener("input", () => {
     $("player-name-error")?.classList.add("hidden");
+    const name = nameInput.value.trim();
+    currentPlayerName = name;
+    $("home-best").textContent = name ? getPlayerBest(name) : 0;
   });
   nameInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
