@@ -606,13 +606,43 @@ class Game {
       this.render();
     };
 
+    // Prevent browser scrolling/zooming on canvas touch
+    if (canvas.style) {
+      canvas.style.touchAction = "none";
+      canvas.style.userSelect = "none";
+      canvas.style.webkitUserSelect = "none";
+    }
+
     this.observer = new ResizeObserver(this.resize);
     this.observer.observe(canvas);
 
+    // Cache bounding rect, refresh on resize/scroll
+    this._cachedRect = null;
+    this._rectDirty = true;
+    const markRectDirty = () => { this._rectDirty = true; };
+    window.addEventListener("scroll", markRectDirty, { passive: true });
+    window.addEventListener("resize", markRectDirty, { passive: true });
+    const origResize = this.resize;
+    this.resize = () => { this._rectDirty = true; origResize(); };
+
+    const getRect = () => {
+      if (this._rectDirty || !this._cachedRect) {
+        this._cachedRect = canvas.getBoundingClientRect();
+        this._rectDirty = false;
+      }
+      return this._cachedRect;
+    };
+
     const move = (e) => {
       if (this.mode !== "running") return;
-      const r = canvas.getBoundingClientRect();
-      this.target = this.clamp(((e.clientX - r.left) / r.width) * this.w);
+      const r = getRect();
+      // Directly set position (no interpolation target) while dragging
+      const gameX = this.clamp(((e.clientX - r.left) / r.width) * this.w);
+      this.target = gameX;
+      // Snap bag directly to finger during active drag for zero-lag feel
+      if (this.dragging) {
+        this.x = gameX;
+      }
     };
 
     canvas.addEventListener("pointerdown", (e) => {
@@ -623,6 +653,7 @@ class Game {
         e.button > 0
       )
         return;
+      e.preventDefault?.();
       this.activePointer = e.pointerId;
       this.dragging = true;
       canvas.setPointerCapture(e.pointerId);
@@ -630,7 +661,10 @@ class Game {
     });
 
     canvas.addEventListener("pointermove", (e) => {
-      if (this.dragging && e.pointerId === this.activePointer) move(e);
+      if (this.dragging && e.pointerId === this.activePointer) {
+        e.preventDefault?.();
+        move(e);
+      }
     });
 
     const release = (e) => {
@@ -756,9 +790,11 @@ class Game {
       if (isTotebag) {
         chosenBonus = BONUSES.find((b) => b.id === "totebag") || BONUSES[0];
       } else {
-        const otherBonuses = BONUSES.filter((b) => b.id !== "totebag");
-        if (remainingTime <= 16 && Math.random() < 0.45) {
-          chosenBonus = Math.random() < 0.6
+        // Filter time bonuses out of the normal pool — they only appear via the rare clutch trigger below
+        const otherBonuses = BONUSES.filter((b) => b.id !== "totebag" && b.id !== "time5" && b.id !== "time10");
+        // Time bonuses are rare: only when under 10s remaining, 10% chance per eligible bonus spawn
+        if (remainingTime <= 10 && Math.random() < 0.10) {
+          chosenBonus = Math.random() < 0.7
             ? (BONUSES.find((b) => b.id === "time5") || otherBonuses[0])
             : (BONUSES.find((b) => b.id === "time10") || otherBonuses[0]);
         } else {
@@ -848,8 +884,14 @@ class Game {
       this.target = this.clamp(this.target + dt * 480);
 
     this.target = this.clamp(this.target);
-    this.x += (this.target - this.x) * (1 - Math.exp(-25 * dt));
-    this.x = this.clamp(this.x);
+    // When dragging, bag already follows finger directly in the move handler.
+    // When not dragging (keyboard or post-release), use fast smooth follow.
+    if (this.dragging) {
+      this.x = this.clamp(this.target);
+    } else {
+      this.x += (this.target - this.x) * (1 - Math.exp(-40 * dt));
+      this.x = this.clamp(this.x);
+    }
 
     this.spawnTime -= dt;
     if (this.spawnTime <= 0) {
