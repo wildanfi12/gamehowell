@@ -39,6 +39,7 @@ function show(id) {
   const name = currentPlayerName || getLastPlayerName();
   if (id === "home") {
     $("home-best").textContent = name ? getPlayerBest(name) : 0;
+    renderHomeTopScores();
     const equipped = getSelectedSkin(name);
     game.setSkin(equipped);
   } else if (id === "skins") {
@@ -78,6 +79,7 @@ window.game = game;
 
 // Pre-fetch live cloud scores on initial startup
 fetchCloudScores().then(() => {
+  renderHomeTopScores();
   if (current === "leaderboard") renderLeaderboardRows();
 });
 
@@ -188,6 +190,7 @@ function end(state) {
 
   latestPlayedDate = new Date().toISOString();
   saveScore(player, state.score);
+  renderHomeTopScores();
   $("save-status").textContent = "★ Skor kamu tercatat di papan skor booth!";
 
   saveBest(state.score);
@@ -225,99 +228,135 @@ function showSkinUnlockCelebration(player) {
   };
 }
 
+function renderHomeTopScores() {
+  const list = $("home-top-scores-list");
+  if (!list) return;
+  const scores = read().scores.slice(0, 3);
+  if (typeof list.replaceChildren === "function") {
+    list.replaceChildren();
+  } else {
+    while (list.firstChild) list.removeChild(list.firstChild);
+  }
+  for (let i = 0; i < 3; i += 1) {
+    const entry = scores[i];
+    const row = document.createElement("li");
+    const rank = document.createElement("span");
+    const name = document.createElement("b");
+    const score = document.createElement("strong");
+    rank.textContent = i + 1;
+    name.textContent = entry?.name || "Belum ada nama";
+    score.textContent = entry ? entry.score : "—";
+    row.append(rank, name, score);
+    list.appendChild(row);
+  }
+}
+
 function renderSkinsUI() {
-  const player = currentPlayerName || getLastPlayerName() || "Pemain Howell";
-  const profile = getPlayerProfile(player);
-  const container = $("skins-grid");
-  if (!container) return;
-  container.replaceChildren();
+  try {
+    const player = currentPlayerName || getLastPlayerName() || "Pemain Howell";
+    const profile = getPlayerProfile(player);
+    const container = $("skins-grid") || $("skins-list") || document.querySelector(".skins-grid");
+    if (!container) return;
 
-  const allSkins = getAllSkins();
-  allSkins.forEach((skin) => {
-    const isChomper = skin.id === "howell-chomper";
-    const isUnlocked = profile.unlockedSkins.includes(skin.id) || (isChomper && profile.highScore >= 750);
-    const isEquipped = profile.selectedSkin === skin.id;
-
-    const card = document.createElement("div");
-    card.className = "skin-card" + (isEquipped ? " equipped" : "") + (isUnlocked ? " unlocked" : " locked");
-
-    const imgWrap = document.createElement("div");
-    imgWrap.className = "skin-card-preview";
-
-    const img = document.createElement("img");
-    img.src = skin.assetPath;
-    img.alt = skin.name;
-    img.className = "skin-card-img" + (isChomper ? " chomper-preview" : "");
-    imgWrap.appendChild(img);
-
-    if (!isUnlocked) {
-      const lockOverlay = document.createElement("div");
-      lockOverlay.className = "skin-lock-overlay";
-      lockOverlay.innerHTML = '<span class="lock-icon">🔒</span><b class="lock-label">BUKA DI 750 POIN</b>';
-      imgWrap.appendChild(lockOverlay);
-    }
-
-    const info = document.createElement("div");
-    info.className = "skin-card-info";
-
-    const title = document.createElement("h3");
-    title.textContent = skin.name;
-
-    const desc = document.createElement("p");
-    desc.className = "skin-card-desc";
-    desc.textContent = skin.description;
-
-    info.appendChild(title);
-    info.appendChild(desc);
-
-    if (!isUnlocked) {
-      const progressBox = document.createElement("div");
-      progressBox.className = "skin-progress-box";
-      const currentPts = profile.highScore || 0;
-      const remaining = Math.max(0, 750 - currentPts);
-      const pct = Math.min(100, Math.round((currentPts / 750) * 100));
-
-      progressBox.innerHTML = `
-        <div class="progress-labels">
-          <span>REKOR: <b>${currentPts} / 750 POIN</b></span>
-          <span>${remaining} poin lagi</span>
-        </div>
-        <div class="skin-progress-track">
-          <div class="skin-progress-bar" style="width: ${pct}%"></div>
-        </div>
-      `;
-      info.appendChild(progressBox);
+    if (typeof container.replaceChildren === "function") {
+      container.replaceChildren();
     } else {
-      const badge = document.createElement("div");
-      badge.className = "skin-status-badge";
-      badge.textContent = isEquipped ? "SEDANG DIGUNAKAN" : "TERBUKA ✓";
-      info.appendChild(badge);
+      while (container.firstChild) container.removeChild(container.firstChild);
     }
 
-    const btn = document.createElement("button");
-    btn.className = "btn-skin-select " + (isEquipped ? "btn-active" : isUnlocked ? "btn-equip" : "btn-locked");
-    if (isEquipped) {
-      btn.textContent = "SEDANG DIGUNAKAN";
-      btn.disabled = true;
-    } else if (isUnlocked) {
-      btn.textContent = "GUNAKAN";
-      btn.onclick = () => {
-        audio.unlock();
-        audio.play();
-        setSelectedSkin(player, skin.id);
-        game.setSkin(skin.id);
-        renderSkinsUI();
-      };
-    } else {
-      btn.textContent = "TERKUNCI";
-      btn.disabled = true;
-    }
+    const allSkins = getAllSkins();
+    const unlockedSkins = Array.isArray(profile?.unlockedSkins) ? profile.unlockedSkins : ["howell-original"];
+    const highScore = profile?.highScore || 0;
+    const selectedSkin = profile?.selectedSkin || "howell-original";
 
-    card.appendChild(imgWrap);
-    card.appendChild(info);
-    card.appendChild(btn);
-    container.appendChild(card);
-  });
+    allSkins.forEach((skin) => {
+      const isChomper = skin.id === "howell-chomper";
+      const isUnlocked = unlockedSkins.includes(skin.id) || (isChomper && highScore >= 750);
+      const isEquipped = selectedSkin === skin.id;
+
+      const card = document.createElement("div");
+      card.className = "skin-card" + (isEquipped ? " equipped" : "") + (isUnlocked ? " unlocked" : " locked");
+
+      const imgWrap = document.createElement("div");
+      imgWrap.className = "skin-card-preview";
+
+      const img = document.createElement("img");
+      img.src = skin.assetPath || (isChomper ? "assets/skins/howell-chomper.png" : "assets/player/howell-totebag.png");
+      img.alt = skin.name || "Skin";
+      img.className = "skin-card-img" + (isChomper ? " chomper-preview" : "");
+      imgWrap.appendChild(img);
+
+      if (!isUnlocked) {
+        const lockOverlay = document.createElement("div");
+        lockOverlay.className = "skin-lock-overlay";
+        lockOverlay.innerHTML = '<span class="lock-icon">🔒</span><b class="lock-label">BUKA DI 750 POIN</b>';
+        imgWrap.appendChild(lockOverlay);
+      }
+
+      const info = document.createElement("div");
+      info.className = "skin-card-info";
+
+      const title = document.createElement("h3");
+      title.textContent = skin.name || (isChomper ? "HOWELL CHOMPER" : "HOWELL ORIGINAL");
+
+      const desc = document.createElement("p");
+      desc.className = "skin-card-desc";
+      desc.textContent = skin.description || "";
+
+      info.appendChild(title);
+      info.appendChild(desc);
+
+      if (!isUnlocked) {
+        const progressBox = document.createElement("div");
+        progressBox.className = "skin-progress-box";
+        const currentPts = highScore;
+        const remaining = Math.max(0, 750 - currentPts);
+        const pct = Math.min(100, Math.round((currentPts / 750) * 100));
+
+        progressBox.innerHTML = `
+          <div class="progress-labels">
+            <span>REKOR: <b>${currentPts} / 750 POIN</b></span>
+            <span>${remaining} poin lagi</span>
+          </div>
+          <div class="skin-progress-track">
+            <div class="skin-progress-bar" style="width: ${pct}%"></div>
+          </div>
+        `;
+        info.appendChild(progressBox);
+      } else {
+        const badge = document.createElement("div");
+        badge.className = "skin-status-badge";
+        badge.textContent = isEquipped ? "SEDANG DIGUNAKAN" : "TERBUKA ✓";
+        info.appendChild(badge);
+      }
+
+      const btn = document.createElement("button");
+      btn.className = "btn-skin-select " + (isEquipped ? "btn-active" : isUnlocked ? "btn-equip" : "btn-locked");
+      if (isEquipped) {
+        btn.textContent = "SEDANG DIGUNAKAN";
+        btn.disabled = true;
+      } else if (isUnlocked) {
+        btn.textContent = "GUNAKAN";
+        btn.onclick = () => {
+          audio.unlock();
+          audio.play();
+          setSelectedSkin(player, skin.id);
+          game.setSkin(skin.id);
+          renderSkinsUI();
+        };
+      } else {
+        btn.textContent = "TERKUNCI";
+        btn.disabled = true;
+      }
+
+      card.appendChild(imgWrap);
+      card.appendChild(info);
+      card.appendChild(btn);
+      container.appendChild(card);
+    });
+  } catch (err) {
+    console.error("Error in renderSkinsUI:", err);
+  }
 }
 
 function renderLeaderboardRows() {
@@ -402,6 +441,7 @@ async function leaderboard() {
   renderLeaderboardRows();
   show("leaderboard");
   const cloud = await syncScores();
+  renderHomeTopScores();
   if (cloud) renderLeaderboardRows();
 }
 
@@ -428,6 +468,9 @@ document.querySelectorAll("[data-action],[data-screen]").forEach((button) =>
       $("pause-overlay").classList.add("hidden");
       show("home");
     } else {
+      if (button.dataset.screen === "skins") {
+        renderSkinsUI();
+      }
       show(button.dataset.screen);
     }
   }),
@@ -509,4 +552,6 @@ CONFIG.rewards.forEach((r, i) => {
   $("prize-list").append(row);
 });
 
+renderHomeTopScores();
+renderSkinsUI();
 show("home");

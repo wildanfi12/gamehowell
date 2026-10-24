@@ -12,9 +12,10 @@ await writeFile(path.join(root,'js/app.js'),bundle);
 
 let html=await readFile(path.join(root,'index.html'),'utf8');
 if (!html.includes('howell-emblem.png')) {
-  html = html.replace(/<link rel="stylesheet" href="css\/style\.css[^"]*"\s*\/?>/, '<link rel="icon" type="image/png" href="assets/branding/howell-emblem.png" />\r\n    <link rel="stylesheet" href="css/style.css?v=2.8.0" />');
+  html = html.replace(/<link rel="stylesheet" href="css\/style\.css[^"]*"\s*\/?>/, '<link rel="icon" type="image/png" href="assets/branding/howell-emblem.png" />\r\n    <link rel="stylesheet" href="css/style.css?v=3.2.0" />');
 }
-html=html.replace(/<script type="module" src="js\/main\.js"><\/script>/,'<script src="js/app.js?v=2.8.0"></script>');
+html = html.replace(/href="css\/style\.css(\?[^"]*)?"/, 'href="css/style.css?v=3.2.0"');
+html = html.replace(/src="js\/(app|main)\.js(\?[^"]*)?"/, 'src="js/app.js?v=3.2.0"');
 await writeFile(path.join(root,'index.html'),html);
 
 const css=await readFile(path.join(root,'css/style.css'),'utf8');
